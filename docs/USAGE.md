@@ -309,6 +309,9 @@ proposal = await learner.learn(goal, trace, verified=True)   # verified=False면
 **안전장치 요약** (자세한 근거는 설계 노트 참조): Goal-Driven 게이트(검증 세션만) · 파싱 검증 ·
 안전성 deny-list · 이름/트리거 dedup · **격리(자동 활성화 금지) + 사람 승격** · 세션 경계 로드.
 
+> 추출기(learner)의 system 프롬프트에는 **`karpathy` 4원칙이 자동 주입**된다(`guidance_skill="karpathy"`,
+> 변경/해제 가능) — 추출 스킬이 신중·간결·외과적·목표주도 규율을 따르도록 유도한다.
+
 ---
 
 ## 7. 에이전트 매트릭스

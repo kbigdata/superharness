@@ -24,12 +24,24 @@ class SkillLearner:
         tiers: TierModelMap,
         writer: SkillWriter,
         hooks: HookBus | None = None,
+        guidance_skill: str = "karpathy",
     ) -> None:
         self.agents = agents
         self.provider = provider
         self.tiers = tiers
         self.writer = writer
         self.hooks = hooks
+        # 추출기 system 프롬프트 앞에 주입할 가이드 스킬(기본: karpathy 4원칙)
+        self.guidance_skill = guidance_skill
+
+    def _guidance_context(self) -> str:
+        """가이드 스킬(예: karpathy)의 본문을 <skill> 블록으로 묶어 반환. 없으면 빈 문자열."""
+        if not self.guidance_skill:
+            return ""
+        skill = self.writer.registry.get(self.guidance_skill)
+        if skill is None:
+            return ""
+        return f'<skill name="{skill.name}">\n{skill.body}\n</skill>'
 
     async def learn(self, goal: str, trace: str, *, verified: bool) -> Proposal | None:
         """검증 통과 세션이면 learner로 스킬을 추출해 제안(격리)한다. 미통과면 None."""
@@ -49,6 +61,11 @@ class SkillLearner:
             ),
         )
         result = await agent.run(
-            task, provider=self.provider, tiers=self.tiers, artifacts=None, hooks=self.hooks
+            task,
+            provider=self.provider,
+            tiers=self.tiers,
+            artifacts=None,
+            hooks=self.hooks,
+            injected_context=self._guidance_context(),  # karpathy 4원칙 주입
         )
         return self.writer.propose(result.output)

@@ -292,12 +292,12 @@ SUPERHARNESS_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-... uv run superharness
 ## 테스트 · 품질
 
 ```bash
-uv run pytest -q       # 49개 테스트 — 오프라인(mock), 네트워크/키 불필요
+uv run pytest -q       # 50개 테스트 — 오프라인(mock), 네트워크/키 불필요
 uv run ruff check .    # 린트
 uv run mypy src        # 타입 체크
 ```
 
-- **49개 테스트 · 라인 커버리지 95%** (오프라인 47 + 라이브 2 opt-in).
+- **50개 테스트 · 라인 커버리지 95%** (오프라인 48 + 라이브 2 opt-in).
 - 단위 테스트는 전부 `MockProvider`로 결정적·오프라인. `pytest-asyncio` auto 모드(마커 불필요).
 - **라이브 API 테스트**(`live` 마커)는 기본 skip. 실제 1콜로 검증:
   ```bash
@@ -321,7 +321,7 @@ src/superharness/
   state/          paths(브랜디드) · descriptor · artifacts(data) · store(control)
   config.py       Settings(SUPERHARNESS_*) · TierModelMap
   cli.py          Typer: ask / state / skills / agents / team / demo
-tests/            47 오프라인 + 2 라이브(opt-in)
+tests/            48 오프라인 + 2 라이브(opt-in)
 docs/USAGE.md     상세 사용 설명서
 examples/starter-app/   재사용 스타터 템플릿
 ```

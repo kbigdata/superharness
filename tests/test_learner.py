@@ -7,6 +7,7 @@ from pathlib import Path
 from superharness.agents import AgentRegistry
 from superharness.config import TierModelMap
 from superharness.orchestration import SkillLearner
+from superharness.providers import MockProvider
 from superharness.providers.base import CompletionRequest, CompletionResult
 from superharness.skills import SkillRegistry, SkillWriter
 from superharness.skills.writer import ProposalStatus
@@ -47,3 +48,14 @@ async def test_learn_proposes_when_verified(tmp_path: Path):
     assert res is not None
     assert res.status == ProposalStatus.PROPOSED
     assert res.name == "extracted-pattern"
+
+
+async def test_learner_injects_karpathy_guidance(tmp_path: Path):
+    prov = MockProvider().when_fn(lambda r: True, SKILL_MD)   # 모든 호출에 유효 스킬 반환 + 기록
+    res = await _learner(tmp_path, prov).learn("goal", "trace", verified=True)
+    assert res is not None and res.status == ProposalStatus.PROPOSED
+    # learner 에이전트 요청의 system 프롬프트에 karpathy 4원칙이 주입됐다
+    assert prov.calls
+    system = (prov.calls[-1].system or "").lower()
+    assert 'skill name="karpathy"' in system
+    assert "surgical" in system and "goal-driven" in system
