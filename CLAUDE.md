@@ -8,8 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 harness** in Python, implementing the core patterns of multi-agent orchestration as a runnable
 MVP core. It is **not** a Claude Code plugin; it abstracts over multiple LLM backends and runs
 fully offline by default (MockProvider). The distribution name, import package, and CLI command
-are all `superharness`. A Korean research report (`oh-my-claudecode_조사보고서.md`) is the
-original design source.
+are all `superharness`. Its core patterns are drawn from prior multi-agent orchestration tooling
+(keyword→skill activation, team pipeline, persistence loop, control/data-plane state).
 
 ## Environment
 
