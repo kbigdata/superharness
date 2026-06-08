@@ -21,11 +21,13 @@ anthropic = ["superharness[anthropic]"]
 [project.scripts]
 agent-app = "agent_app.cli:app"
 
-# 슈퍼하네스를 로컬 경로(editable)로 의존한다.
-# ※ 이 템플릿을 다른 곳으로 복사하면 아래 path를 슈퍼하네스 위치(로컬 경로 또는 git URL)로 바꾼다.
-#   git 예시:  superharness = { git = "https://github.com/<you>/superharness", rev = "main" }
+# 슈퍼하네스를 git 저장소에서 릴리스 태그로 의존한다.
+# ※ 지금은 원격이 없어 로컬 저장소(file://)를 가리킨다.
+#   GitHub로 푸시한 뒤에는 아래처럼 바꾼다:
+#     superharness = { git = "https://github.com/<you>/superharness", tag = "v0.1.0" }
+#   (tag 대신 rev = "<sha>" 또는 branch = "main" 도 가능)
 [tool.uv.sources]
-superharness = { path = "../..", editable = true }
+superharness = { git = "file:///Users/jeonghyun/claude-test", tag = "v0.1.0" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_app"]

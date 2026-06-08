@@ -18,12 +18,18 @@
 ```bash
 cd examples/starter-app
 uv venv --python 3.12
-uv pip install -e ".[dev]"
+uv pip install -e ".[dev]"      # superharness를 git 태그 v0.1.0에서 빌드·설치
 # 실제 Claude까지:  uv pip install -e ".[dev,anthropic]"
 ```
 
-> `pyproject.toml`의 `[tool.uv.sources]`가 슈퍼하네스를 로컬 경로(`../..`)로 의존한다.
-> 이 폴더를 **다른 곳으로 복사**하면 그 path를 슈퍼하네스 위치(로컬 경로 또는 git URL)로 바꿔라.
+> `pyproject.toml`의 `[tool.uv.sources]`가 슈퍼하네스를 **git 저장소의 릴리스 태그**로 의존한다
+> (uv가 클론→wheel 빌드→설치). 현재는 원격이 없어 로컬 저장소(`file:///Users/jeonghyun/claude-test`)를
+> 가리킨다. **GitHub로 푸시한 뒤**에는 다음으로 바꾼다:
+> ```toml
+> [tool.uv.sources]
+> superharness = { git = "https://github.com/<you>/superharness", tag = "v0.1.0" }
+> ```
+> 빌드 산출물(wheel/sdist)을 직접 쓰려면 상위 레포에서 `uv build` 후 `dist/*.whl`을 인덱스/릴리스에 올린다.
 
 ## 실행 (오프라인)
 
