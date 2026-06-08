@@ -82,6 +82,7 @@ src/superharness/
 ## 더 알아보기
 
 - 상세 사용 설명서: [`docs/USAGE.md`](docs/USAGE.md) — CLI 전체 레퍼런스, 환경변수, 라이브러리 API, 스킬/에이전트/프로바이더 확장, FAQ
+- 스타터 템플릿: [`examples/starter-app/`](examples/starter-app/) — 슈퍼하네스를 엔진으로 재사용하는 새 프로젝트 예제(커스텀 스킬·에이전트 + Team 파이프라인 + 자체 CLI)
 - 코드 작업 규약: [`CLAUDE.md`](CLAUDE.md)
 
 라이선스: MIT.
