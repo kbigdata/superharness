@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "superharness"
-version = "0.1.0"
+version = "0.2.0"
 description = "슈퍼하네스 — 멀티에이전트 오케스트레이션의 핵심 패턴을 구현한 프레임워크 중립 코어"
 readme = "README.md"
 requires-python = ">=3.11"
