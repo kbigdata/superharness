@@ -73,4 +73,9 @@ src/superharness/
   cli.py       Typer: ask / state / skills / agents / team / demo
 ```
 
+## 더 알아보기
+
+- 상세 사용 설명서: [`docs/USAGE.md`](docs/USAGE.md) — CLI 전체 레퍼런스, 환경변수, 라이브러리 API, 스킬/에이전트/프로바이더 확장, FAQ
+- 코드 작업 규약: [`CLAUDE.md`](CLAUDE.md)
+
 라이선스: MIT.
