@@ -14,20 +14,26 @@ original design source.
 ## Environment
 
 Requires **Python 3.11+** (uses `enum.StrEnum`, `X | Y` unions, `datetime.UTC`). The machine's
-default `python3` is 3.9 — use the dedicated env: `/Users/jeonghyun/miniforge3/envs/superharness312/bin/python`
-(create with `conda create -n superharness312 python=3.12` if missing).
+default `python3` is 3.9, so the project uses a **uv**-managed venv pinned to 3.12 via
+`.python-version`. One-time setup:
+
+```bash
+uv python install 3.12          # if 3.12 not yet installed
+uv venv --python 3.12           # creates ./.venv
+uv pip install -e ".[dev]"      # core + dev tools
+# uv pip install -e ".[dev,anthropic]"  # + real Claude backend
+```
 
 ## Commands
 
+Prefix with `uv run` (resolves the project venv automatically), or activate `./.venv` first.
+
 ```bash
-PY=/Users/jeonghyun/miniforge3/envs/superharness312/bin/python
-$PY -m pip install -e ".[dev]"            # core + dev tools (offline)
-$PY -m pip install -e ".[dev,anthropic]"  # + real Claude backend
-$PY -m pytest -q                          # full suite, offline (no network/keys)
-$PY -m pytest tests/test_e2e_demo.py -q   # single test file
-$PY -m ruff check .                        # lint (must stay clean)
-$PY -m mypy src                            # type-check (must stay clean)
-superharness demo                               # E2E CLI: detect→inject→pipeline→ralph→artifacts
+uv run pytest -q                          # full suite, offline (no network/keys)
+uv run pytest tests/test_e2e_demo.py -q   # single test file
+uv run ruff check .                        # lint (must stay clean)
+uv run mypy src                            # type-check (must stay clean)
+uv run superharness demo                   # E2E CLI: detect→inject→pipeline→ralph→artifacts
 ```
 
 All three gates (pytest / ruff / mypy) currently pass; keep them green.

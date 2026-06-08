@@ -13,30 +13,36 @@
 | ③ 지속/검증 루프 (Ralph) | `RalphLoop` + `PersistentMode`(STOP 차단) |
 | ④ 상태/아티팩트 + 티어 라우팅 | `StateStore`(control) / `ArtifactStore`+`ArtifactDescriptor`(data) / `TierModelMap` |
 
-## 설치
+## 설치 ([uv](https://docs.astral.sh/uv/) 기반)
+
+Python 3.12는 `.python-version`으로 핀되어 있다.
 
 ```bash
-pip install -e ".[dev]"          # 코어 + 개발 도구 (오프라인)
-pip install -e ".[dev,anthropic]"  # 실제 Claude 백엔드까지
+uv python install 3.12              # 3.12 미설치 시 1회
+uv venv --python 3.12               # ./.venv 생성
+uv pip install -e ".[dev]"          # 코어 + 개발 도구 (오프라인)
+# uv pip install -e ".[dev,anthropic]"  # 실제 Claude 백엔드까지
 ```
 
 ## 빠른 시작 (API 키 불필요 — 기본 mock 프로바이더)
 
+`uv run` 접두사를 붙이거나 `source .venv/bin/activate` 후 실행한다.
+
 ```bash
-superharness --help
-superharness ask "hello"                       # 단일 완성 (오프라인)
-superharness state init                        # .superharness 상태 트리 생성 + 샘플 아티팩트
-superharness skills list                       # 로드된 스킬/트리거
-superharness skills detect "ultrawork: refactor, don't stop until done"
-superharness agents run executor "write a CSV parser"
-superharness team "build a CSV parser"
-superharness demo                              # E2E: detect→inject→pipeline→ralph→artifacts
+uv run superharness --help
+uv run superharness ask "hello"                # 단일 완성 (오프라인)
+uv run superharness state init                 # .superharness 상태 트리 생성 + 샘플 아티팩트
+uv run superharness skills list                # 로드된 스킬/트리거
+uv run superharness skills detect "ultrawork: refactor, don't stop until done"
+uv run superharness agents run executor "write a CSV parser"
+uv run superharness team "build a CSV parser"
+uv run superharness demo                       # E2E: detect→inject→pipeline→ralph→artifacts
 ```
 
 ## 실제 Claude로 전환
 
 ```bash
-SUPERHARNESS_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-... superharness ask "hello"
+SUPERHARNESS_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-... uv run superharness ask "hello"
 ```
 
 프로바이더 레지스트리(`superharness.providers.get_provider`)가 유일한 교체 지점이다.
@@ -55,9 +61,9 @@ SUPERHARNESS_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-... superharness ask "h
 ## 테스트
 
 ```bash
-pytest -q          # 전 테스트 오프라인(mock) — 네트워크/키 불필요
-ruff check .
-mypy src
+uv run pytest -q     # 전 테스트 오프라인(mock) — 네트워크/키 불필요
+uv run ruff check .
+uv run mypy src
 ```
 
 ## 디렉토리
