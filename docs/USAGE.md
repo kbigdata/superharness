@@ -561,6 +561,12 @@ uv run mypy src                            # 타입 체크
 
 - 모든 테스트는 기본 `MockProvider`로 돌아 **네트워크/API 키가 필요 없다**.
 - 테스트는 `pytest-asyncio` auto 모드 — 마커 없이 `async def test_...`로 작성.
+- **라이브 API 테스트**(`live` 마커)는 기본 skip. 실제 1콜로 검증하려면:
+  ```bash
+  uv pip install -e ".[dev,anthropic]"
+  ANTHROPIC_API_KEY=sk-ant-... uv run pytest -m live
+  ```
+  (저비용을 위해 LOW=haiku + 작은 max_tokens만 호출. opus adaptive-thinking 경로도 확인)
 - E2E 스모크(`tests/test_e2e_demo.py`)는 프롬프트 → 키워드 활성화 → Team 파이프라인 → verify 1회 실패 후 통과 → 아티팩트/메모리/라이프사이클 이벤트까지 한 번에 검증한다.
 
 세 게이트(pytest/ruff/mypy)는 현재 모두 통과 상태이며, 변경 시 녹색 유지가 규칙이다.

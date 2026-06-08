@@ -38,6 +38,9 @@ packages = ["src/superharness"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "live: 실제 Anthropic API를 호출하는 테스트 (ANTHROPIC_API_KEY + anthropic extra 필요). 기본 skip.",
+]
 
 [tool.ruff]
 line-length = 100
