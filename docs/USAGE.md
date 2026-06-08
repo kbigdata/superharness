@@ -266,6 +266,49 @@ SUPERHARNESS_MAX_CONCURRENCY=8 SUPERHARNESS_LOG=DEBUG superharness team "..."
 
 > 모드는 다운스트림 러너가 Team/Ralph 같은 실행 전략을 고를 때 쓰는 신호다. 활성화 결과(`injected_context`)는 에이전트의 system 프롬프트 앞에 붙는다.
 
+### 자동 스킬 생성 (learner)
+
+검증 통과한 세션에서 **재사용 가능한 스킬을 추출**해 다음 작업에 쓰는 자기개선 루프(Hermes식)를
+**안전 우선**으로 구현한다. 핵심은 *"검증 안 된 지시가 영구 자동 적용"* 을 막는 게이트다.
+
+```
+검증 통과 세션  ──(Goal-Driven 게이트)──▶  learner(HIGH) 추출
+        │                                        │
+        │                                 SkillWriter 게이트
+        ▼                                        ▼
+  미통과면 학습 skip                ① 파싱 검증  ② 안전성 스캔(비밀/위험 토큰)
+                                    ③ dedup(이름·트리거 충돌)  ④ 격리 기록
+                                                 │
+                                    .superharness/skills-proposed/  (자동 로드 안 됨)
+                                                 │  사람이 promote
+                                                 ▼
+                                    .superharness/skills/  (다음 실행부터 자동 적용)
+```
+
+CLI:
+```bash
+uv run superharness team "..." --learn      # 검증 성공 시 추출 시도(제안/격리)
+uv run superharness skills proposed         # 격리된 제안 목록
+uv run superharness skills promote <name>   # 활성 디렉토리로 승격
+```
+
+> mock 프로바이더는 유효한 스킬 마크다운을 만들지 못하므로 `--learn`은 `rejected_invalid`가 정상이다.
+> 실제 추출은 `SUPERHARNESS_PROVIDER=anthropic`(HIGH=opus)에서 의미가 있다.
+
+라이브러리:
+```python
+from superharness.orchestration import SkillLearner
+from superharness.skills import SkillWriter, SkillRegistry
+
+writer = SkillWriter(active_dir, proposed_dir, SkillRegistry.load())
+learner = SkillLearner(agents=registry, provider=prov, tiers=settings.tiers, writer=writer)
+proposal = await learner.learn(goal, trace, verified=True)   # verified=False면 None
+# proposal.status ∈ proposed / rejected_invalid / rejected_unsafe / rejected_duplicate
+```
+
+**안전장치 요약** (자세한 근거는 설계 노트 참조): Goal-Driven 게이트(검증 세션만) · 파싱 검증 ·
+안전성 deny-list · 이름/트리거 dedup · **격리(자동 활성화 금지) + 사람 승격** · 세션 경계 로드.
+
 ---
 
 ## 7. 에이전트 매트릭스

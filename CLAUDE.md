@@ -47,7 +47,10 @@ Four core patterns map to layers under `src/superharness/`:
    matched skills' bodies into a `<skill>` context block and picks the strongest `mode`
    (rank: plain < ultrawork < autopilot < team < ralph). Skills are markdown files with YAML
    frontmatter in `skills/builtin/` (plus optional `.superharness/skills/` project + `~/.superharness/skills/`
-   user dirs; later overrides earlier by name).
+   user dirs; later overrides earlier by name). **Auto skill-generation**: `orchestration/learner.py`
+   (`SkillLearner`) extracts a reusable skill from a *verified* session, and `skills/writer.py`
+   (`SkillWriter`) gates it (parse → safety deny-list → name/trigger dedup) into a **quarantined**
+   `.superharness/skills-proposed/` dir — never auto-enabled; a human `skills promote`s it to active.
 2. **Multi-agent orchestration** (`orchestration/`, `agents/`): `TeamPipeline.run(goal)` does
    plan(planner) → derive tasks → exec(executor, parallel) → verify(qa-tester) → fix loop.
    `Orchestrator` fans out workers over a shared `TaskList` (atomic `claim/complete/fail` under

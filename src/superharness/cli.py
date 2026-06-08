@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import anyio
 import typer
 
@@ -9,11 +11,13 @@ from superharness.agents.registry import AgentRegistry
 from superharness.config import load_settings
 from superharness.hooks.bus import HookBus, PersistentMode
 from superharness.hooks.events import LifecycleEvent
+from superharness.orchestration.learner import SkillLearner
 from superharness.orchestration.pipeline import TeamPipeline
 from superharness.orchestration.task import Task
 from superharness.providers import get_provider
 from superharness.providers.base import CompletionRequest, Message, Tier
 from superharness.skills.registry import SkillRegistry
+from superharness.skills.writer import SkillWriter
 from superharness.state.artifacts import ArtifactStore
 from superharness.state.paths import StateLayout
 from superharness.state.store import StateStore
@@ -85,6 +89,30 @@ def skills_detect(prompt: str) -> None:
         typer.echo(activation.injected_context)
 
 
+def _skill_writer() -> SkillWriter:
+    """SkillRegistry가 자동 로드하는 디렉토리(active)와 격리(proposed) 디렉토리를 잇는다."""
+    active = Path.cwd() / ".superharness" / "skills"
+    proposed = Path.cwd() / ".superharness" / "skills-proposed"
+    return SkillWriter(active, proposed, SkillRegistry.load())
+
+
+@skills_app.command("proposed")
+def skills_proposed() -> None:
+    """학습으로 제안된(격리된) 스킬 목록. 활성화하려면 `skills promote <name>`."""
+    names = _skill_writer().list_proposed()
+    if not names:
+        typer.echo("(제안된 스킬 없음)")
+    for n in names:
+        typer.echo(n)
+
+
+@skills_app.command("promote")
+def skills_promote(name: str) -> None:
+    """격리된 스킬을 활성 디렉토리로 승격 → 다음 실행부터 자동 적용."""
+    dst = _skill_writer().promote(name)
+    typer.echo(f"승격됨: {dst}")
+
+
 @agents_app.command("run")
 def agents_run(
     name: str = typer.Argument(..., help="에이전트 이름 (예: executor, architect-high)"),
@@ -116,10 +144,21 @@ def agents_run(
 
 
 @app.command()
-def team(goal: str, provider: str = typer.Option(None)) -> None:
-    """Team 파이프라인: plan → exec(병렬) → verify → fix(loop)."""
+def team(
+    goal: str,
+    provider: str = typer.Option(None),
+    learn: bool = typer.Option(False, "--learn", help="검증 성공 시 재사용 스킬 추출(제안/격리)"),
+) -> None:
+    """Team 파이프라인: plan → exec(병렬) → verify → fix(loop). --learn 시 학습까지."""
     result = anyio.run(lambda: _run_pipeline(goal, provider))
     _print_pipeline(result)
+    if learn:
+        proposal = anyio.run(lambda: _learn_from(goal, result, provider))
+        if proposal is None:
+            typer.echo("학습: 건너뜀 (검증 미통과)")
+        else:
+            tail = f" — {proposal.reason}" if proposal.reason else ""
+            typer.echo(f"학습: {proposal.status} {proposal.name or ''}{tail}".rstrip())
 
 
 @app.command()
@@ -156,6 +195,21 @@ async def _run_pipeline(goal: str, provider: str | None, injected: str = ""):
     result = await pipeline.run(goal)
     store.merge_memory({"last_goal": goal, "verified": result.verified})
     return result
+
+
+async def _learn_from(goal: str, result, provider: str | None):
+    """파이프라인 결과(검증 + 산출물)에서 재사용 스킬을 추출(제안)한다."""
+    settings = load_settings(provider=provider)
+    layout = StateLayout(settings.state_dir).init()
+    artifacts = ArtifactStore(layout)
+    trace = "\n---\n".join(artifacts.read(d) for d in result.results)
+    learner = SkillLearner(
+        agents=AgentRegistry.default(),
+        provider=get_provider(settings.provider),
+        tiers=settings.tiers,
+        writer=_skill_writer(),
+    )
+    return await learner.learn(goal, trace, verified=result.verified)
 
 
 def _print_pipeline(result) -> None:

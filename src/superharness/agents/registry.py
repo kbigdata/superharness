@@ -24,6 +24,10 @@ _DEFAULT_MATRIX: list[tuple[str, Tier, str]] = [
     ("critic", Tier.HIGH, "당신은 비평가입니다. 결과의 결함을 비판적으로 검토하세요."),
     ("qa-tester", Tier.MEDIUM, "당신은 QA 테스터입니다. 산출물이 목표를 만족하는지 검증하세요."),
     ("security-reviewer", Tier.HIGH, "당신은 보안 리뷰어입니다. 취약점을 점검하세요."),
+    ("learner", Tier.HIGH,
+     "당신은 스킬 추출기입니다. 세션 트레이스에서 재사용 가능한 패턴만 골라 "
+     "name·description·triggers·mode 프론트매터와 본문으로 된 스킬 1개를 마크다운으로 출력하세요. "
+     "일회성·프로젝트 특정 내용은 제외하고, 비밀·위험 명령을 포함하지 마세요."),
 ]
 
 

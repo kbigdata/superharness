@@ -11,6 +11,7 @@ from superharness.skills.skill import (
     load_skill_file,
     load_skill_text,
 )
+from superharness.skills.writer import Proposal, ProposalStatus, SkillWriter
 
 __all__ = [
     "Skill",
@@ -22,4 +23,7 @@ __all__ = [
     "SkillInjector",
     "Activation",
     "SkillRegistry",
+    "SkillWriter",
+    "Proposal",
+    "ProposalStatus",
 ]

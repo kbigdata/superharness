@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from superharness.orchestration.learner import SkillLearner
 from superharness.orchestration.orchestrator import Orchestrator
 from superharness.orchestration.pipeline import PipelineResult, TeamPipeline
 from superharness.orchestration.ralph import RalphLoop, RalphResult, VerifyReport
@@ -17,4 +18,5 @@ __all__ = [
     "RalphLoop",
     "RalphResult",
     "VerifyReport",
+    "SkillLearner",
 ]
