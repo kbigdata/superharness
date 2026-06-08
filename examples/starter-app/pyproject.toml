@@ -29,9 +29,7 @@ superharness = { path = "../..", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_app"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"src/agent_app/skills" = "agent_app/skills"
+# 커스텀 스킬 .md는 패키지 디렉토리 안에 있어 wheel에 자동 포함된다.
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
