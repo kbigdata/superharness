@@ -2,10 +2,11 @@
 
 > 범용 멀티에이전트 오케스트레이션 하네스 — 프레임워크 중립 Python 코어
 
-![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+[![CI](https://github.com/kbigdata/superharness/actions/workflows/ci.yml/badge.svg)](https://github.com/kbigdata/superharness/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.11%20|%203.12%20|%203.13-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Built with uv](https://img.shields.io/badge/built%20with-uv-261230)
-![Tests](https://img.shields.io/badge/tests-40%20·%20cov%2095%25-success)
+![Coverage](https://img.shields.io/badge/coverage-95%25-success)
 
 멀티에이전트 오케스트레이션의 핵심 패턴(키워드→스킬 활성화 · 병렬 협업 · 지속/검증 루프 ·
 상태/티어 라우팅)을 **하나의 작고 실행 가능한 Python 코어**로 구현했다. Claude Code 플러그인이
