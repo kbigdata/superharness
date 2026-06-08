@@ -50,6 +50,23 @@ async def test_learn_proposes_when_verified(tmp_path: Path):
     assert res.name == "extracted-pattern"
 
 
+async def test_refine_missing_skill_returns_none(tmp_path: Path):
+    res = await _learner(tmp_path, _SkillMock()).refine("nonexistent-skill")
+    assert res is None
+
+
+async def test_refine_proposes_for_existing(tmp_path: Path):
+    # builtin 'ralph' 개선: critic mock이 동일 name 스킬 반환 → refine=True라 dedup 통과
+    refined = (
+        '---\nname: ralph\ndescription: 개선\ntriggers: ["ralph"]\nmode: ralph\n---\n개선된 본문\n'
+    )
+    prov = MockProvider().when_fn(lambda r: True, refined)
+    res = await _learner(tmp_path, prov).refine("ralph", "더 명확히")
+    assert res is not None
+    assert res.status == ProposalStatus.PROPOSED
+    assert res.name == "ralph"
+
+
 async def test_learner_injects_karpathy_guidance(tmp_path: Path):
     prov = MockProvider().when_fn(lambda r: True, SKILL_MD)   # 모든 호출에 유효 스킬 반환 + 기록
     res = await _learner(tmp_path, prov).learn("goal", "trace", verified=True)

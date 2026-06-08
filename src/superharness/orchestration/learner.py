@@ -12,7 +12,18 @@ from superharness.config import TierModelMap
 from superharness.hooks.bus import HookBus
 from superharness.orchestration.task import Task
 from superharness.providers.base import Provider, Tier
+from superharness.skills.skill import Skill
 from superharness.skills.writer import Proposal, SkillWriter
+
+
+def _skill_to_md(skill: Skill) -> str:
+    """Skill 객체를 frontmatter 마크다운으로 직렬화 (critic 입력용)."""
+    fm = skill.frontmatter
+    triggers = ", ".join(f'"{t}"' for t in fm.triggers)
+    return (
+        f"---\nname: {fm.name}\ndescription: {fm.description}\n"
+        f"triggers: [{triggers}]\nmode: {fm.mode}\n---\n{skill.body}"
+    )
 
 
 class SkillLearner:
@@ -69,3 +80,34 @@ class SkillLearner:
             injected_context=self._guidance_context(),  # karpathy 4원칙 주입
         )
         return self.writer.propose(result.output)
+
+    async def refine(self, name: str, note: str = "") -> Proposal | None:
+        """기존 활성 스킬을 critic으로 개선한 후보를 격리(제안)한다. 없는 스킬이면 None.
+
+        개선안은 동일 name을 유지하며 proposed에 격리된다 — 승격(promote) 시 버전으로 기록.
+        드리프트에 대비해 rollback이 가능하다.
+        """
+        existing = self.writer.registry.get(name)
+        if existing is None:
+            return None
+        critic = self.agents.get("critic", Tier.HIGH)
+        default_note = "더 간결·정확하게 다듬되 동일 name·핵심 트리거를 유지하라."
+        task = Task(
+            id="refine",
+            domain="critic",
+            tier=Tier.HIGH,
+            description=(
+                f"기존 스킬:\n{_skill_to_md(existing)}\n\n"
+                f"개선 요청: {note or default_note}\n\n"
+                f"개선된 스킬 1개를 YAML frontmatter 마크다운으로만 출력하라. name은 '{name}' 유지."
+            ),
+        )
+        result = await critic.run(
+            task,
+            provider=self.provider,
+            tiers=self.tiers,
+            artifacts=None,
+            hooks=self.hooks,
+            injected_context=self._guidance_context(),
+        )
+        return self.writer.propose(result.output, refine=True)

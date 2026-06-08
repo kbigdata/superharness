@@ -51,6 +51,9 @@ Four core patterns map to layers under `src/superharness/`:
    (`SkillLearner`) extracts a reusable skill from a *verified* session, and `skills/writer.py`
    (`SkillWriter`) gates it (parse → safety deny-list → name/trigger dedup) into a **quarantined**
    `.superharness/skills-proposed/` dir — never auto-enabled; a human `skills promote`s it to active.
+   **Refine + versioning**: `SkillLearner.refine` improves an existing skill via the `critic` agent
+   (karpathy-injected); `skills/versions.py` (`SkillVersionStore`) records each active change
+   (`promoted`/`rolledback`) as a content-hashed artifact + JSON index, enabling `skills history`/`rollback`.
 2. **Multi-agent orchestration** (`orchestration/`, `agents/`): `TeamPipeline.run(goal)` does
    plan(planner) → derive tasks → exec(executor, parallel) → verify(qa-tester) → fix loop.
    `Orchestrator` fans out workers over a shared `TaskList` (atomic `claim/complete/fail` under

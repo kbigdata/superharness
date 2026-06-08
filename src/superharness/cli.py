@@ -17,6 +17,7 @@ from superharness.orchestration.task import Task
 from superharness.providers import get_provider
 from superharness.providers.base import CompletionRequest, Message, Tier
 from superharness.skills.registry import SkillRegistry
+from superharness.skills.versions import SkillVersionStore
 from superharness.skills.writer import SkillWriter
 from superharness.state.artifacts import ArtifactStore
 from superharness.state.paths import StateLayout
@@ -90,10 +91,13 @@ def skills_detect(prompt: str) -> None:
 
 
 def _skill_writer() -> SkillWriter:
-    """SkillRegistry가 자동 로드하는 디렉토리(active)와 격리(proposed) 디렉토리를 잇는다."""
+    """SkillRegistry가 자동 로드하는 디렉토리(active) + 격리(proposed) + 버전 스토어를 잇는다."""
+    settings = load_settings()
+    layout = StateLayout(settings.state_dir).init()
     active = Path.cwd() / ".superharness" / "skills"
     proposed = Path.cwd() / ".superharness" / "skills-proposed"
-    return SkillWriter(active, proposed, SkillRegistry.load())
+    versions = SkillVersionStore(ArtifactStore(layout), layout.root / "skill-versions.json")
+    return SkillWriter(active, proposed, SkillRegistry.load(), versions=versions)
 
 
 @skills_app.command("proposed")
@@ -108,9 +112,45 @@ def skills_proposed() -> None:
 
 @skills_app.command("promote")
 def skills_promote(name: str) -> None:
-    """격리된 스킬을 활성 디렉토리로 승격 → 다음 실행부터 자동 적용."""
+    """격리된 스킬을 활성 디렉토리로 승격 → 다음 실행부터 자동 적용 (버전 기록)."""
     dst = _skill_writer().promote(name)
     typer.echo(f"승격됨: {dst}")
+
+
+@skills_app.command("history")
+def skills_history(name: str) -> None:
+    """활성 스킬의 버전 이력(최신 우선)."""
+    entries = _skill_writer().history(name)
+    if not entries:
+        typer.echo("(버전 없음)")
+    for e in entries:
+        sha = e.descriptor.content_hash[:12]
+        typer.echo(f"v{e.version:<3} {e.operation:<10} {e.created_at}  sha256={sha}")
+
+
+@skills_app.command("rollback")
+def skills_rollback(name: str, version: int) -> None:
+    """활성 스킬을 특정 버전 내용으로 롤백 (새 버전으로 기록)."""
+    dst = _skill_writer().rollback(name, version)
+    typer.echo(f"롤백됨: {name} → v{version} ({dst})")
+
+
+@skills_app.command("refine")
+def skills_refine(name: str, note: str = typer.Option("", help="개선 요청 메모")) -> None:
+    """기존 활성 스킬을 critic으로 개선한 후보를 격리(제안)한다. 승격 시 버전화."""
+    settings = load_settings()
+    learner = SkillLearner(
+        agents=AgentRegistry.default(),
+        provider=get_provider(settings.provider),
+        tiers=settings.tiers,
+        writer=_skill_writer(),
+    )
+    proposal = anyio.run(lambda: learner.refine(name, note))
+    if proposal is None:
+        typer.echo(f"refine: 활성 스킬 없음 ({name})")
+    else:
+        tail = f" — {proposal.reason}" if proposal.reason else ""
+        typer.echo(f"refine: {proposal.status} {proposal.name or ''}{tail}".rstrip())
 
 
 @agents_app.command("run")

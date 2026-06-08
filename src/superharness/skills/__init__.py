@@ -11,6 +11,7 @@ from superharness.skills.skill import (
     load_skill_file,
     load_skill_text,
 )
+from superharness.skills.versions import SkillVersionStore, VersionEntry
 from superharness.skills.writer import Proposal, ProposalStatus, SkillWriter
 
 __all__ = [
@@ -26,4 +27,6 @@ __all__ = [
     "SkillWriter",
     "Proposal",
     "ProposalStatus",
+    "SkillVersionStore",
+    "VersionEntry",
 ]

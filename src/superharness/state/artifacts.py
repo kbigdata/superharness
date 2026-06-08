@@ -9,7 +9,7 @@ from superharness.errors import StateError
 from superharness.state.descriptor import ArtifactDescriptor
 from superharness.state.paths import StateLayout, as_read_path, as_write_path
 
-_EXT = {"plan": "md", "spec": "md", "result": "md", "trace": "json", "note": "md"}
+_EXT = {"plan": "md", "spec": "md", "result": "md", "trace": "json", "note": "md", "skill": "md"}
 
 
 def _now_iso() -> str:

@@ -312,6 +312,36 @@ proposal = await learner.learn(goal, trace, verified=True)   # verified=False면
 > 추출기(learner)의 system 프롬프트에는 **`karpathy` 4원칙이 자동 주입**된다(`guidance_skill="karpathy"`,
 > 변경/해제 가능) — 추출 스킬이 신중·간결·외과적·목표주도 규율을 따르도록 유도한다.
 
+#### refine + 버전관리
+
+활성 스킬은 **버전 이력**을 가진다. 내용은 `ArtifactStore`(content-hash, data plane)에 보관되고
+이름→버전 인덱스는 `.superharness/skill-versions.json`(control plane)에 둔다. 자기개선(refine)
+드리프트에 대비해 **어느 버전으로든 롤백**할 수 있다.
+
+```bash
+uv run superharness skills refine <name> --note "더 간결하게"  # critic(HIGH)이 개선안 생성 → 격리
+uv run superharness skills promote <name>                      # 개선안 활성 + 버전 기록
+uv run superharness skills history <name>                      # 버전 이력(최신 우선)
+uv run superharness skills rollback <name> <version>           # 특정 버전으로 복원(새 버전 기록)
+```
+
+- `refine`은 `critic` 에이전트가 기존 스킬 + 개선 메모로 개선안을 만들고(karpathy 주입), 동일 name이라
+  dedup을 건너뛰어 **격리(proposed)** 한다. 승격해야 활성 교체 + 버전화된다.
+- 버전 operation: `promoted` / `rolledback`. 롤백은 과거 내용을 복원하면서 **새 버전**으로 남겨 이력이 보존된다.
+
+라이브러리:
+```python
+from superharness.skills import SkillVersionStore, SkillWriter
+from superharness.state import ArtifactStore, StateLayout
+
+layout = StateLayout("./.superharness").init()
+versions = SkillVersionStore(ArtifactStore(layout), layout.root / "skill-versions.json")
+writer = SkillWriter(active_dir, proposed_dir, registry, versions=versions)
+writer.promote("my-skill")                 # → v1 promoted
+writer.history("my-skill")                 # [VersionEntry...]  최신 우선
+writer.rollback("my-skill", 1)             # → 활성 복원 + v_next rolledback
+```
+
 ---
 
 ## 7. 에이전트 매트릭스
