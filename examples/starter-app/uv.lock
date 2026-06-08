@@ -34,8 +34,8 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
-    { name = "superharness", git = "https://github.com/kbigdata/superharness?tag=v0.1.0" },
-    { name = "superharness", extras = ["anthropic"], marker = "extra == 'anthropic'", git = "https://github.com/kbigdata/superharness?tag=v0.1.0" },
+    { name = "superharness", git = "https://github.com/kbigdata/superharness?tag=v0.2.0" },
+    { name = "superharness", extras = ["anthropic"], marker = "extra == 'anthropic'", git = "https://github.com/kbigdata/superharness?tag=v0.2.0" },
     { name = "typer", specifier = ">=0.12" },
 ]
 provides-extras = ["dev", "anthropic"]
@@ -783,8 +783,8 @@ wheels = [
 
 [[package]]
 name = "superharness"
-version = "0.1.0"
-source = { git = "https://github.com/kbigdata/superharness?tag=v0.1.0#d252fd45c3745fa64da85ed7249ab2397dff9aa8" }
+version = "0.2.0"
+source = { git = "https://github.com/kbigdata/superharness?tag=v0.2.0#698c90464e2b32bbf7e93216d06fcf2f41c546dc" }
 dependencies = [
     { name = "anyio" },
     { name = "pydantic" },

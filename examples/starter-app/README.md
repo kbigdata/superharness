@@ -18,7 +18,7 @@
 ```bash
 cd examples/starter-app
 uv venv --python 3.12
-uv pip install -e ".[dev]"      # superharness를 git 태그 v0.1.0에서 빌드·설치
+uv pip install -e ".[dev]"      # superharness를 git 태그 v0.2.0에서 빌드·설치
 # 실제 Claude까지:  uv pip install -e ".[dev,anthropic]"
 ```
 
@@ -26,7 +26,7 @@ uv pip install -e ".[dev]"      # superharness를 git 태그 v0.1.0에서 빌드
 > (uv가 클론→wheel 빌드→설치):
 > ```toml
 > [tool.uv.sources]
-> superharness = { git = "https://github.com/kbigdata/superharness", tag = "v0.1.0" }
+> superharness = { git = "https://github.com/kbigdata/superharness", tag = "v0.2.0" }
 > ```
 > `tag` 대신 `rev = "<sha>"`/`branch = "main"`도 가능하다. 빌드 산출물(wheel/sdist)을 직접 쓰려면
 > 상위 레포에서 `uv build` 후 `dist/*.whl`을 인덱스/릴리스에 올린다.
