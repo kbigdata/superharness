@@ -784,7 +784,7 @@ wheels = [
 [[package]]
 name = "superharness"
 version = "0.1.0"
-source = { git = "https://github.com/kbigdata/superharness?tag=v0.1.0#a94de353c83a6f61ad4ef729caf4c1bfc1340012" }
+source = { git = "https://github.com/kbigdata/superharness?tag=v0.1.0#d252fd45c3745fa64da85ed7249ab2397dff9aa8" }
 dependencies = [
     { name = "anyio" },
     { name = "pydantic" },
