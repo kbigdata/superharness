@@ -3,6 +3,7 @@
 > 범용 멀티에이전트 오케스트레이션 하네스 — 프레임워크 중립 Python 코어
 
 [![CI](https://github.com/kbigdata/superharness/actions/workflows/ci.yml/badge.svg)](https://github.com/kbigdata/superharness/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/kbigdata/superharness?sort=semver)](https://github.com/kbigdata/superharness/releases/latest)
 ![Python](https://img.shields.io/badge/python-3.11%20|%203.12%20|%203.13-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Built with uv](https://img.shields.io/badge/built%20with-uv-261230)
@@ -90,7 +91,36 @@ $ uv run superharness demo
 - 패키지/환경 관리: [**uv**](https://docs.astral.sh/uv/) (기본 `python3`가 3.9여도 uv가 3.12를 조달).
   미설치 시 `brew install uv` 또는 `curl -LsSf https://astral.sh/uv/install.sh | sh`.
 
+### A. 라이브러리로 설치 ([최신 릴리스](https://github.com/kbigdata/superharness/releases/latest) · `v0.1.0`)
+
+다른 프로젝트에서 엔진으로 가져다 쓸 때. 세 가지 방법 중 택1:
+
 ```bash
+# 1) git 태그 의존 (권장) — uv가 클론→빌드→설치
+uv add "superharness @ git+https://github.com/kbigdata/superharness@v0.1.0"
+
+# 2) 릴리스 첨부 wheel
+uv pip install \
+  https://github.com/kbigdata/superharness/releases/download/v0.1.0/superharness-0.1.0-py3-none-any.whl
+
+# 3) 소스 배포본(sdist)
+uv pip install \
+  https://github.com/kbigdata/superharness/releases/download/v0.1.0/superharness-0.1.0.tar.gz
+```
+
+`pyproject.toml`에 고정하려면:
+```toml
+[tool.uv.sources]
+superharness = { git = "https://github.com/kbigdata/superharness", tag = "v0.1.0" }
+```
+실 Claude 백엔드까지: `uv add "superharness[anthropic] @ git+https://github.com/kbigdata/superharness@v0.1.0"`.
+
+### B. 개발용 설치 (소스 클론)
+
+이 저장소 자체에서 개발·기여할 때:
+
+```bash
+git clone https://github.com/kbigdata/superharness && cd superharness
 uv python install 3.12              # 3.12 미설치 시 1회
 uv venv --python 3.12               # ./.venv 생성 (.python-version=3.12 핀)
 uv pip install -e ".[dev]"          # 코어 + 개발 도구 (오프라인)
