@@ -32,6 +32,3 @@ htmlcov/
 *.swp
 .idea/
 .vscode/
-
-# 내부 설계 참고용 조사 보고서 (저장소에 공개하지 않음, 로컬 전용)
-oh-my-claudecode_조사보고서.md
