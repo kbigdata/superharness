@@ -13,7 +13,7 @@ from superharness.hooks.bus import HookBus
 from superharness.orchestration.task import Task
 from superharness.providers.base import Provider, Tier
 from superharness.skills.skill import Skill
-from superharness.skills.writer import Proposal, SkillWriter
+from superharness.skills.writer import Proposal, ProposalStatus, SkillWriter
 
 
 def _skill_to_md(skill: Skill) -> str:
@@ -36,6 +36,8 @@ class SkillLearner:
         writer: SkillWriter,
         hooks: HookBus | None = None,
         guidance_skill: str = "karpathy",
+        semantic_judge: bool = False,
+        judge_domain: str = "critic",
     ) -> None:
         self.agents = agents
         self.provider = provider
@@ -44,6 +46,9 @@ class SkillLearner:
         self.hooks = hooks
         # 추출기 system 프롬프트 앞에 주입할 가이드 스킬(기본: karpathy 4원칙)
         self.guidance_skill = guidance_skill
+        # 추출 후 LLM이 의미 중복을 판정(opt-in). writer의 오프라인 어휘 게이트와 별개.
+        self.semantic_judge = semantic_judge
+        self.judge_domain = judge_domain
 
     def _guidance_context(self) -> str:
         """가이드 스킬(예: karpathy)의 본문을 <skill> 블록으로 묶어 반환. 없으면 빈 문자열."""
@@ -79,7 +84,40 @@ class SkillLearner:
             hooks=self.hooks,
             injected_context=self._guidance_context(),  # karpathy 4원칙 주입
         )
+        if self.semantic_judge:
+            dup = await self._semantic_duplicate(result.output)
+            if dup is not None:
+                return Proposal(
+                    status=ProposalStatus.REJECTED_DUPLICATE,
+                    reason=f"semantic duplicate of {dup!r} (LLM judge)",
+                )
         return self.writer.propose(result.output)
+
+    async def _semantic_duplicate(self, candidate_md: str) -> str | None:
+        """LLM 판정: 후보가 기존 스킬과 의미상 중복이면 그 이름, 고유하면 None."""
+        existing = self.writer.registry.skills
+        if not existing:
+            return None
+        listing = "\n".join(f"- {s.name}: {s.frontmatter.description}" for s in existing)
+        judge = self.agents.get(self.judge_domain, Tier.HIGH)
+        task = Task(
+            id="dedup-judge",
+            domain=self.judge_domain,
+            tier=Tier.HIGH,
+            description=(
+                f"후보 스킬:\n{candidate_md}\n\n기존 스킬 목록:\n{listing}\n\n"
+                "후보가 기존 중 하나와 '의미상 중복'이면 'DUPLICATE: <name>' 한 줄로, "
+                "고유하면 'UNIQUE' 한 줄로만 답하라."
+            ),
+        )
+        res = await judge.run(
+            task, provider=self.provider, tiers=self.tiers, artifacts=None, hooks=self.hooks
+        )
+        out = res.output.strip()
+        if out.upper().startswith("DUPLICATE"):
+            name = out.split(":", 1)[1].strip() if ":" in out else ""
+            return name or "(unknown)"
+        return None
 
     async def refine(self, name: str, note: str = "") -> Proposal | None:
         """기존 활성 스킬을 critic으로 개선한 후보를 격리(제안)한다. 없는 스킬이면 None.

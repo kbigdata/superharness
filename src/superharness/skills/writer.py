@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from superharness.errors import SkillError
 from superharness.skills.registry import SkillRegistry
+from superharness.skills.similarity import LexicalSimilarity, Similarity
 from superharness.skills.skill import load_skill_text
 from superharness.skills.versions import SkillVersionStore, VersionEntry
 
@@ -55,11 +56,15 @@ class SkillWriter:
         proposed_dir: Path,
         registry: SkillRegistry,
         versions: SkillVersionStore | None = None,
+        similarity: Similarity | None = None,
+        similarity_threshold: float = 0.6,
     ) -> None:
         self.active_dir = Path(active_dir)        # SkillRegistry가 자동 로드하는 디렉토리
         self.proposed_dir = Path(proposed_dir)    # 격리 — 자동 로드되지 않음
         self.registry = registry                  # dedup 기준(현재 활성 스킬들)
         self.versions = versions                  # 활성 스킬 버전 이력(선택)
+        self.similarity = similarity or LexicalSimilarity()   # 의미 중복 체커(교체 가능)
+        self.similarity_threshold = similarity_threshold
 
     def propose(self, skill_md: str, *, refine: bool = False) -> Proposal:
         """추출 스킬을 게이트 후 격리한다. refine=True면 기존 스킬 개선안이므로 dedup을 건너뛴다."""
@@ -81,6 +86,7 @@ class SkillWriter:
 
         # 3) dedup — 신규 스킬만(refine은 동일 name 개선이므로 건너뜀)
         if not refine:
+            # 3a) 정확 dedup: 이름 중복 / 트리거 충돌
             if self.registry.get(skill.name) is not None:
                 return Proposal(
                     status=ProposalStatus.REJECTED_DUPLICATE,
@@ -94,6 +100,14 @@ class SkillWriter:
                         name=skill.name,
                         reason=f"trigger collision: {trig!r}",
                     )
+            # 3b) 의미 중복: 기존 스킬과 내용이 임계치 이상 겹치면 거부
+            sim = self.similarity.score(skill, self.registry.skills)
+            if sim.best_name is not None and sim.score >= self.similarity_threshold:
+                return Proposal(
+                    status=ProposalStatus.REJECTED_DUPLICATE,
+                    name=skill.name,
+                    reason=f"semantic duplicate of {sim.best_name!r} (score={sim.score:.2f})",
+                )
 
         # 4) 격리 기록 — 자동 활성화하지 않는다
         self.proposed_dir.mkdir(parents=True, exist_ok=True)

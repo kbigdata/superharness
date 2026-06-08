@@ -54,6 +54,9 @@ Four core patterns map to layers under `src/superharness/`:
    **Refine + versioning**: `SkillLearner.refine` improves an existing skill via the `critic` agent
    (karpathy-injected); `skills/versions.py` (`SkillVersionStore`) records each active change
    (`promoted`/`rolledback`) as a content-hashed artifact + JSON index, enabling `skills history`/`rollback`.
+   **Semantic dedup**: `skills/similarity.py` (`LexicalSimilarity`, token Jaccard) gates near-duplicate
+   proposals offline (pluggable `Similarity` Protocol); `SkillLearner(semantic_judge=True)` adds an
+   optional LLM-judge pass for paraphrase-level duplicates.
 2. **Multi-agent orchestration** (`orchestration/`, `agents/`): `TeamPipeline.run(goal)` does
    plan(planner) → derive tasks → exec(executor, parallel) → verify(qa-tester) → fix loop.
    `Orchestrator` fans out workers over a shared `TaskList` (atomic `claim/complete/fail` under

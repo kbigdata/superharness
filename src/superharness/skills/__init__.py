@@ -5,6 +5,11 @@ from __future__ import annotations
 from superharness.skills.injector import Activation, SkillInjector
 from superharness.skills.keyword_detector import KeywordDetector, MatchedTrigger
 from superharness.skills.registry import SkillRegistry
+from superharness.skills.similarity import (
+    LexicalSimilarity,
+    Similarity,
+    SimilarityResult,
+)
 from superharness.skills.skill import (
     Skill,
     SkillFrontmatter,
@@ -29,4 +34,7 @@ __all__ = [
     "ProposalStatus",
     "SkillVersionStore",
     "VersionEntry",
+    "Similarity",
+    "SimilarityResult",
+    "LexicalSimilarity",
 ]

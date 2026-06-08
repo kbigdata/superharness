@@ -67,6 +67,36 @@ async def test_refine_proposes_for_existing(tmp_path: Path):
     assert res.name == "ralph"
 
 
+def _judge_learner(tmp_path: Path, provider) -> SkillLearner:
+    writer = SkillWriter(tmp_path / "skills", tmp_path / "skills-proposed", SkillRegistry.load())
+    return SkillLearner(
+        agents=AgentRegistry.default(),
+        provider=provider,
+        tiers=TierModelMap(),
+        writer=writer,
+        semantic_judge=True,
+    )
+
+
+async def test_semantic_judge_rejects_duplicate(tmp_path: Path):
+    prov = MockProvider()
+    prov.when_fn(lambda r: "의미상 중복" in r.messages[-1].content, "DUPLICATE: ralph")
+    prov.when_fn(lambda r: True, SKILL_MD)   # 추출 호출
+    res = await _judge_learner(tmp_path, prov).learn("goal", "trace", verified=True)
+    assert res is not None
+    assert res.status == ProposalStatus.REJECTED_DUPLICATE
+    assert "ralph" in res.reason
+
+
+async def test_semantic_judge_allows_unique(tmp_path: Path):
+    prov = MockProvider()
+    prov.when_fn(lambda r: "의미상 중복" in r.messages[-1].content, "UNIQUE")
+    prov.when_fn(lambda r: True, SKILL_MD)
+    res = await _judge_learner(tmp_path, prov).learn("goal", "trace", verified=True)
+    assert res is not None
+    assert res.status == ProposalStatus.PROPOSED
+
+
 async def test_learner_injects_karpathy_guidance(tmp_path: Path):
     prov = MockProvider().when_fn(lambda r: True, SKILL_MD)   # 모든 호출에 유효 스킬 반환 + 기록
     res = await _learner(tmp_path, prov).learn("goal", "trace", verified=True)

@@ -307,7 +307,13 @@ proposal = await learner.learn(goal, trace, verified=True)   # verified=False면
 ```
 
 **안전장치 요약** (자세한 근거는 설계 노트 참조): Goal-Driven 게이트(검증 세션만) · 파싱 검증 ·
-안전성 deny-list · 이름/트리거 dedup · **격리(자동 활성화 금지) + 사람 승격** · 세션 경계 로드.
+안전성 deny-list · 이름/트리거 dedup · **의미 중복(semantic) dedup** · **격리(자동 활성화 금지) +
+사람 승격** · 세션 경계 로드.
+
+> **의미 중복 dedup (2단계)**: ① `SkillWriter`가 `LexicalSimilarity`(description+triggers+body 토큰
+> Jaccard, 오프라인·결정적, 임계치 기본 0.6)로 near-exact 중복을 거른다 — `Similarity` Protocol이라
+> 임베딩 기반 체커로 교체 가능. ② `SkillLearner(semantic_judge=True)`면 추출 후 LLM(critic·HIGH)이
+> 의역까지 포함한 의미 중복을 판정해 거른다(mock으로도 테스트 가능, 실 Claude에서 의미 있음).
 
 > 추출기(learner)의 system 프롬프트에는 **`karpathy` 4원칙이 자동 주입**된다(`guidance_skill="karpathy"`,
 > 변경/해제 가능) — 추출 스킬이 신중·간결·외과적·목표주도 규율을 따르도록 유도한다.
