@@ -33,3 +33,7 @@ class StateError(HarnessError):
 
 class PathViolation(StateError):
     """브랜디드 경로가 상태 디렉토리를 벗어나거나 traversal을 시도함."""
+
+
+class CodebaseError(HarnessError):
+    """코드베이스 읽기 도구 오류 (바이너리/누락 파일 등)."""

@@ -19,6 +19,9 @@ _DEFAULT_MATRIX: list[tuple[str, Tier, str]] = [
     ("executor", Tier.HIGH, "당신은 시니어 실행 엔지니어입니다. 복잡한 구현을 완수하세요."),
     ("explore", Tier.LOW, "당신은 탐색 에이전트입니다. 관련 정보를 찾으세요."),
     ("explore", Tier.HIGH, "당신은 심층 탐색 에이전트입니다. 광범위하게 조사하세요."),
+    ("code-explorer", Tier.MEDIUM,
+     "당신은 코드베이스 탐색가입니다. 주어진 코드 단서(<codebase> 블록)를 근거로 "
+     "관련 파일·심볼을 짚고, 추측 대신 인용으로 답하세요."),
     ("designer", Tier.MEDIUM, "당신은 프론트엔드 디자이너입니다. UI를 설계하세요."),
     ("planner", Tier.HIGH, "당신은 기획자입니다. 목표를 실행 가능한 태스크 목록으로 분해하세요."),
     ("critic", Tier.HIGH, "당신은 비평가입니다. 결과의 결함을 비판적으로 검토하세요."),

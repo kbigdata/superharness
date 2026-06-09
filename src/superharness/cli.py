@@ -20,16 +20,29 @@ from superharness.skills.registry import SkillRegistry
 from superharness.skills.versions import SkillVersionStore
 from superharness.skills.writer import SkillWriter
 from superharness.state.artifacts import ArtifactStore
+from superharness.state.memory import MemoryInjector, MemoryStore
+from superharness.state.memory_recorder import MemoryRecorder
 from superharness.state.paths import StateLayout
 from superharness.state.store import StateStore
+from superharness.state.wiki import WikiStore
+from superharness.tools.codebase import Codebase
+from superharness.tools.codemap import CodeMap
 
 app = typer.Typer(help="슈퍼하네스 — 범용 멀티에이전트 하네스 (프레임워크 중립 코어)")
 skills_app = typer.Typer(help="스킬 / 키워드 활성화")
 state_app = typer.Typer(help="상태 / 아티팩트")
 agents_app = typer.Typer(help="에이전트 디스패치")
+memory_app = typer.Typer(help="구조화 메모리 (추가/검색)")
+codebase_app = typer.Typer(help="읽기 전용 코드베이스 탐색 (glob/read/grep)")
+wiki_app = typer.Typer(help="세션 누적 위키 (지식베이스)")
+session_app = typer.Typer(help="세션 (검색)")
 app.add_typer(skills_app, name="skills")
 app.add_typer(state_app, name="state")
 app.add_typer(agents_app, name="agents")
+app.add_typer(memory_app, name="memory")
+app.add_typer(codebase_app, name="codebase")
+app.add_typer(wiki_app, name="wiki")
+app.add_typer(session_app, name="session")
 
 
 @app.command()
@@ -153,6 +166,119 @@ def skills_refine(name: str, note: str = typer.Option("", help="개선 요청 �
         typer.echo(f"refine: {proposal.status} {proposal.name or ''}{tail}".rstrip())
 
 
+# list[str] 인자의 typer.Option 기본값은 ruff B008을 피하려 모듈 싱글톤으로 둔다.
+_TAG_ADD_OPT = typer.Option(None, "--tag", help="태그(반복 가능)")
+_TAG_QUERY_OPT = typer.Option(None, "--tag", help="태그 필터(모두 포함)")
+
+
+@memory_app.command("add")
+def memory_add(
+    text: str,
+    namespace: str = typer.Option("default", "--ns", help="네임스페이스"),
+    tag: list[str] | None = _TAG_ADD_OPT,
+) -> None:
+    """구조화 메모리를 추가한다."""
+    layout = StateLayout(load_settings().state_dir).init()
+    entry = MemoryStore(layout).add(text, namespace=namespace, tags=tag or [], source="cli")
+    typer.echo(f"추가됨: [{entry.namespace}] {entry.id}  tags={entry.tags}")
+
+
+@memory_app.command("query")
+def memory_query(
+    text: str = typer.Argument("", help="부분문자열(비우면 전체)"),
+    namespace: str = typer.Option(None, "--ns", help="네임스페이스 필터"),
+    tag: list[str] | None = _TAG_QUERY_OPT,
+    since: str = typer.Option(None, help="ISO8601 이후만"),
+    limit: int = typer.Option(20, help="최대 개수"),
+) -> None:
+    """메모리를 검색한다(최신 우선)."""
+    layout = StateLayout(load_settings().state_dir).init()
+    hits = MemoryStore(layout).query(
+        namespace=namespace,
+        tags=tag or None,
+        text_contains=text or None,
+        since=since,
+        limit=limit,
+    )
+    if not hits:
+        typer.echo("(결과 없음)")
+    for e in hits:
+        typer.echo(f"[{e.namespace}] {e.created_at}  {e.text}  tags={e.tags}")
+
+
+@codebase_app.command("glob")
+def codebase_glob(
+    pattern: str = typer.Argument("*", help="상대경로 glob (예: 'src/**/*.py')"),
+    root: str = typer.Option(".", help="코드베이스 루트"),
+) -> None:
+    """패턴에 매치되는 파일을 나열한다."""
+    for rel in Codebase(root).glob(pattern):
+        typer.echo(rel)
+
+
+@codebase_app.command("grep")
+def codebase_grep(
+    regex: str,
+    include: str = typer.Option("*", help="파일 한정 glob (예: '*.py')"),
+    root: str = typer.Option(".", help="코드베이스 루트"),
+) -> None:
+    """정규식으로 코드 라인을 검색한다."""
+    hits = Codebase(root).grep(regex, include=include)
+    if not hits:
+        typer.echo("(매치 없음)")
+    for h in hits:
+        typer.echo(f"{h.path}:{h.line}: {h.text}")
+
+
+@codebase_app.command("read")
+def codebase_read(
+    rel: str,
+    root: str = typer.Option(".", help="코드베이스 루트"),
+) -> None:
+    """루트 하위 파일을 읽어 출력한다 (traversal 차단)."""
+    typer.echo(Codebase(root).read(rel))
+
+
+@codebase_app.command("map")
+def codebase_map(
+    include: str = typer.Option("*.py", help="대상 파일 glob"),
+    root: str = typer.Option(".", help="코드베이스 루트"),
+) -> None:
+    """deepinit식 코드맵(파일별 top-level 심볼)을 마크다운으로 출력한다."""
+    typer.echo(CodeMap(Codebase(root)).render(include=include))
+
+
+@wiki_app.command("add")
+def wiki_add(section: str, text: str) -> None:
+    """위키에 섹션 블록을 추가한다."""
+    layout = StateLayout(load_settings().state_dir).init()
+    WikiStore(layout).append(section, text)
+    typer.echo(f"위키 추가됨: ## {section}")
+
+
+@wiki_app.command("show")
+def wiki_show() -> None:
+    """누적된 위키 전체를 출력한다."""
+    layout = StateLayout(load_settings().state_dir).init()
+    content = WikiStore(layout).render()
+    typer.echo(content if content else "(위키 비어 있음)")
+
+
+@session_app.command("search")
+def session_search(
+    query: str = typer.Argument("", help="부분문자열(비우면 전체)"),
+    since: str = typer.Option(None, help="ISO8601 이후만"),
+) -> None:
+    """세션을 검색한다(최신 우선)."""
+    layout = StateLayout(load_settings().state_dir).init()
+    metas = StateStore(layout).search_sessions(query, since=since)
+    if not metas:
+        typer.echo("(세션 없음)")
+    for m in metas:
+        n = len(m.get("events", []))
+        typer.echo(f"{m.get('session_id')}  {m.get('created_at')}  events={n}")
+
+
 @agents_app.command("run")
 def agents_run(
     name: str = typer.Argument(..., help="에이전트 이름 (예: executor, architect-high)"),
@@ -223,6 +349,10 @@ async def _run_pipeline(goal: str, provider: str | None, injected: str = ""):
     store.create_session("cli-session")
     hooks = HookBus()
     persistent = PersistentMode(hooks)
+    MemoryRecorder(hooks, store)  # 라이프사이클 이벤트를 project-memory에 자동 적립
+    # 관련 메모리를 회상해 스킬 컨텍스트와 합쳐 주입
+    mem_ctx = MemoryInjector(MemoryStore(layout)).recall(goal)
+    combined = "\n\n".join(c for c in (injected, mem_ctx) if c)
     pipeline = TeamPipeline(
         agents=AgentRegistry.default(),
         provider=get_provider(settings.provider),
@@ -230,7 +360,7 @@ async def _run_pipeline(goal: str, provider: str | None, injected: str = ""):
         artifacts=artifacts,
         hooks=hooks,
         persistent=persistent,
-        injected_context=injected,
+        injected_context=combined,
     )
     result = await pipeline.run(goal)
     store.merge_memory({"last_goal": goal, "verified": result.verified})
