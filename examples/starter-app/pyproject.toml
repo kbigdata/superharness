@@ -24,7 +24,7 @@ agent-app = "agent_app.cli:app"
 # 슈퍼하네스를 git 저장소에서 릴리스 태그로 의존한다 (uv가 클론→wheel 빌드→설치).
 # tag 대신 rev = "<sha>" 또는 branch = "main" 도 가능.
 [tool.uv.sources]
-superharness = { git = "https://github.com/kbigdata/superharness", tag = "v0.2.0" }
+superharness = { git = "https://github.com/kbigdata/superharness", tag = "v0.3.0" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_app"]
