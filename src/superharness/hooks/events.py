@@ -13,6 +13,7 @@ class LifecycleEvent(StrEnum):
     USER_PROMPT_SUBMIT = "UserPromptSubmit"
     PRE_TOOL_USE = "PreToolUse"
     POST_TOOL_USE = "PostToolUse"
+    PRE_COMPACT = "PreCompact"
     SUBAGENT_START = "SubagentStart"
     SUBAGENT_STOP = "SubagentStop"
     STOP = "Stop"

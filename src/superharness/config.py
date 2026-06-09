@@ -5,10 +5,19 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+import hashlib
+from pathlib import Path
+
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from superharness.providers.base import Tier
+
+
+def derive_project_id(cwd: str | Path | None = None) -> str:
+    """cwd 경로의 안정 해시로 project-id를 파생한다 (12자, 결정적)."""
+    base = str(Path(cwd).resolve()) if cwd is not None else str(Path.cwd().resolve())
+    return hashlib.sha256(base.encode("utf-8")).hexdigest()[:12]
 
 
 class TierModelMap(BaseSettings):
@@ -31,11 +40,24 @@ class Settings(BaseSettings):
 
     provider: str = "mock"
     state_dir: str = "./.superharness"
+    # 멀티프로젝트 격리: state_root가 설정되면 effective state_dir = {state_root}/{project_id}.
+    # state_root 미설정 시 기존 동작(state_dir 그대로) — 하위호환.
+    state_root: str | None = None
+    project_id: str | None = None
     parallel_execution: bool = True
     max_concurrency: int = 4
     max_iterations: int = 10
 
     tiers: TierModelMap = Field(default_factory=TierModelMap)
+
+    @model_validator(mode="after")
+    def _apply_project_isolation(self) -> Settings:
+        """state_root가 있으면 project_id별 디렉토리로 state_dir을 파생한다."""
+        if self.state_root:
+            pid = self.project_id or derive_project_id()
+            self.project_id = pid
+            self.state_dir = str(Path(self.state_root) / pid)
+        return self
 
 
 def load_settings(**overrides: object) -> Settings:
