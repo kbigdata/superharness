@@ -1,77 +1,102 @@
 # 슈퍼하네스 (superharness)
 
-> 범용 멀티에이전트 오케스트레이션 하네스 — 프레임워크 중립 Python 코어
+> 여러 AI를 한 팀처럼 묶어, 하나의 목표를 **통과할 때까지 자동으로** 처리하게 해주는 작은 Python 엔진
 
 [![CI](https://github.com/kbigdata/superharness/actions/workflows/ci.yml/badge.svg)](https://github.com/kbigdata/superharness/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/kbigdata/superharness?sort=semver)](https://github.com/kbigdata/superharness/releases/latest)
 ![Python](https://img.shields.io/badge/python-3.11%20|%203.12%20|%203.13-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Built with uv](https://img.shields.io/badge/built%20with-uv-261230)
-![Coverage](https://img.shields.io/badge/coverage-95%25-success)
 
-멀티에이전트 오케스트레이션의 핵심 패턴(키워드→스킬 활성화 · 병렬 협업 · 지속/검증 루프 ·
-상태/티어 라우팅)을 **하나의 작고 실행 가능한 Python 코어**로 구현했다. Claude Code 플러그인이
-아니라, 여러 LLM 백엔드를 추상화하는 **독립형 라이브러리 + CLI**다.
+---
 
-- **기본값이 오프라인** — API 키 없이 `mock` 프로바이더로 전 기능이 돌아간다(테스트·데모 포함).
-- **한 줄로 실 Claude 전환** — `SUPERHARNESS_PROVIDER=anthropic` 만 바꾸면 된다.
-- **프레임워크 중립** — `Provider` Protocol 하나로 Anthropic/Mock/커스텀 백엔드를 교체.
-- **확장은 데이터 편집** — 스킬은 마크다운, 에이전트는 매트릭스 한 줄로 추가.
+## 한눈에: 이게 뭔가요?
+
+보통 AI에게 "CSV 파서 만들어줘"라고 하면 **한 번 답하고 끝**입니다.
+슈퍼하네스는 그 일을 **여러 AI 일꾼에게 나눠 시키고, 결과를 검사하고, 통과 못 하면 다시
+고치는 과정을 자동으로 반복**합니다. 마치 작은 개발팀처럼요.
+
+```
+당신: "CSV 파서 만들어줘"
+  │
+  ├─ 🧑‍💼 기획자 AI  → 할 일을 잘게 쪼갠다
+  ├─ 🧑‍🔧 실행자 AI들 → 쪼갠 일을 나눠서 동시에 만든다
+  ├─ 🕵️ 검사자 AI   → "목표를 만족했나?" 확인
+  └─ ❌ 실패하면 → 자동으로 다시 고침 → 통과할 때까지 반복 ↺
+```
+
+- **"하네스(harness)"** 는 여러 마리의 말을 묶어 함께 부리는 *마구(馬具)* 를 뜻합니다.
+  여기서는 **여러 AI를 묶어 한 방향으로 일하게 만드는 틀**이라는 의미입니다.
+- 특정 도구(예: Claude Code)의 플러그인이 **아니라**, 어디서든 가져다 쓰는 **독립형 라이브러리 + CLI**입니다.
+
+### 왜 편한가요?
+
+| 장점 | 풀어 쓰면 |
+|---|---|
+| 🆓 **키 없이 공짜로 돌아감** | 기본이 "가짜 AI(mock)" 모드라 API 키·인터넷 없이 전 기능·전 테스트가 동작. 구조를 먼저 공짜로 익힐 수 있음 |
+| 🔌 **키 하나로 진짜 전환** | `SUPERHARNESS_PROVIDER=anthropic` 한 줄이면 실제 Claude로 바뀜 |
+| 🧩 **확장이 쉬움** | 새 작업 규칙은 마크다운 파일 한 개, 새 AI 역할은 표에 한 줄 추가로 끝 (코드 작성 거의 불필요) |
+| 🪶 **가볍고 안전** | 무거운 의존성 없이 표준 라이브러리 위주. 파일 경로 탈출·결과 변조를 막는 안전장치 내장 |
+
+---
+
+## 핵심 용어 30초 정리
+
+README 전체에서 쓰는 단어들입니다. 여기만 읽어도 나머지가 술술 읽힙니다.
+
+| 용어 | 쉬운 뜻 |
+|---|---|
+| **에이전트(agent)** | 특정 역할(기획·실행·검사 등)을 맡은 **AI 일꾼 하나** |
+| **스킬(skill)** | "이 단어가 나오면 이렇게 행동해라"를 적어둔 **마크다운 규칙 파일**. 프롬프트 속 키워드로 자동 발동 |
+| **모드(mode)** | 스킬이 켜는 **작업 방식**. 예: `ralph` = "통과할 때까지 멈추지 마라" |
+| **티어(tier)** | 일의 **난이도**(LOW·MEDIUM·HIGH). 난이도에 따라 싼/중간/비싼 모델을 자동 선택 |
+| **프로바이더(provider)** | 실제로 AI를 호출하는 **백엔드**. `mock`(가짜·공짜) 또는 `anthropic`(진짜 Claude) |
+| **아티팩트(artifact)** | 에이전트가 만든 **결과물 파일**(계획서·산출물). 내용 지문(해시)으로 저장돼 변조를 막음 |
+| **오케스트레이션** | 여러 에이전트의 **순서·병렬·재시도를 조율**하는 것 |
+| **하네스(harness)** | 위 모든 것을 묶어 굴리는 **전체 틀** = 이 프로젝트 |
 
 ---
 
 ## 목차
 
-- [무엇을 구현하나](#무엇을-구현하나-4대-핵심-패턴)
-- [동작 원리](#동작-원리-demo-한-줄의-흐름)
-- [요구 사항 · 설치](#요구-사항--설치)
-- [빠른 시작](#빠른-시작-api-키-불필요)
-- [오케스트레이션 개념](#오케스트레이션-개념)
-- [라이브러리로 임베드](#라이브러리로-임베드)
+- [60초 체험 (설치 없이 흐름만)](#60초-체험-설치-없이-흐름만)
+- [네 가지 핵심 기능](#네-가지-핵심-기능)
+- [설치](#설치)
+- [빠른 시작 (API 키 불필요)](#빠른-시작-api-키-불필요)
+- [조금 더 깊이: 개념 설명](#조금-더-깊이-개념-설명)
+- [v0.3.0에서 추가된 것](#v030에서-추가된-것)
+- [코드에서 직접 쓰기 (라이브러리)](#코드에서-직접-쓰기-라이브러리)
 - [실제 Claude로 전환](#실제-claude로-전환)
-- [설정(환경변수)](#설정-환경변수)
+- [설정 (환경변수)](#설정-환경변수)
 - [테스트 · 품질](#테스트--품질)
 - [프로젝트 구조](#프로젝트-구조)
-- [새 프로젝트에서 재사용](#새-프로젝트에서-재사용)
 - [상태 · 로드맵](#상태--로드맵)
 
 ---
 
-## 무엇을 구현하나 (4대 핵심 패턴)
+## 60초 체험 (설치 없이 흐름만)
 
-| 패턴 | 무엇을 하나 | 구현 |
-|---|---|---|
-| ① **키워드→스킬 활성화** | 프롬프트의 트리거 단어를 감지해 워크플로(스킬)와 실행 모드를 주입 | `KeywordDetector` + `SkillInjector` |
-| ② **멀티에이전트 오케스트레이션** | 공유 태스크 리스트를 도메인×티어 에이전트가 병렬 처리 | `Orchestrator`(asyncio fan-out) + `TeamPipeline` |
-| ③ **지속/검증 루프 (Ralph)** | verify→fix를 목표 검증 완료까지 반복(부분 완료로 끝나지 않음) | `RalphLoop` + `PersistentMode`(STOP 차단) |
-| ④ **상태/아티팩트 + 티어 라우팅** | control/data plane 분리, 해시 주소 아티팩트, 난이도→모델 매핑 | `StateStore` / `ArtifactStore` / `TierModelMap` |
-
----
-
-## 동작 원리 (`demo` 한 줄의 흐름)
+명령 하나(`demo`)가 위에서 설명한 **기획→실행→검사→수정** 전체를 한 번에 보여줍니다.
+무엇이 일어나는지 그림으로 먼저 보세요.
 
 ```
-프롬프트  "ultrawork: build a CSV parser, don't stop until tests pass"
+입력 프롬프트:  "ultrawork: build a CSV parser, don't stop until tests pass"
    │
-   ▼  ① 키워드→스킬
-[KeywordDetector] 트리거 감지 → ultrawork, "don't stop"
-[SkillInjector]   스킬 본문 주입 + 모드 결정(ralph)         ← 가장 강한 모드 채택
+   ▼  ① 키워드 감지 → 스킬 켜기
+   "ultrawork", "don't stop" 단어를 발견 → 'ralph' 모드 켜짐("통과까지 멈추지 마")
    │
-   ▼  ② 오케스트레이션
-[TeamPipeline]
-   plan   (planner · HIGH=opus)     → 플랜 아티팩트 + 태스크 도출
-   exec   (executor · MEDIUM=sonnet) → Orchestrator가 병렬 디스패치(asyncio)
-   verify (qa-tester · MEDIUM)       → 통과? ──┐
-   │                                   실패 ↺  │  ③ Ralph
-   └────────────── [RalphLoop] 완료까지 fix 반복 ┘
-                   (PersistentMode: 미검증 동안 STOP 차단)
+   ▼  ② 일 시키기 (오케스트레이션)
+   기획자(planner)  → 할 일 목록 + 계획서 작성
+   실행자(executor) → 목록을 동시에 처리 (병렬)
+   검사자(qa-tester)→ 목표 만족? ──┐
+   │                        실패 ↺ │  ③ 통과할 때까지 반복
+   └──────────── 자동 수정 후 재검사 ┘
    │
-   ▼  ④ 상태/아티팩트
-[State]  control → project-memory.json (세션·메타)
-         data    → artifacts/<sha256>.md (plan/result, 해시 검증)
+   ▼  ④ 결과 저장
+   계획서·산출물을 artifacts/<지문>.md 로 저장 (내용 해시로 변조 방지)
 ```
 
-실제 출력:
+진짜 실행하면 이렇게 출력됩니다 (키 없이 가짜 AI로):
 
 ```text
 $ uv run superharness demo
@@ -85,27 +110,41 @@ $ uv run superharness demo
 
 ---
 
-## 요구 사항 · 설치
+## 네 가지 핵심 기능
 
-- **Python 3.11+** (`enum.StrEnum`, `X | Y` 유니언, `datetime.UTC` 사용)
-- 패키지/환경 관리: [**uv**](https://docs.astral.sh/uv/) (기본 `python3`가 3.9여도 uv가 3.12를 조달).
-  미설치 시 `brew install uv` 또는 `curl -LsSf https://astral.sh/uv/install.sh | sh`.
+슈퍼하네스는 아래 4가지를 합쳐 동작합니다. (오른쪽은 실제 코드 위치 — 지금은 몰라도 됩니다.)
 
-### A. 라이브러리로 설치 ([최신 릴리스](https://github.com/kbigdata/superharness/releases/latest) · `v0.3.0`)
+| 기능 | 한 줄 설명 | 코드 |
+|---|---|---|
+| ① **키워드 → 스킬** | 프롬프트에 특정 단어가 있으면 알맞은 작업 규칙(스킬)과 모드를 자동으로 켠다 | `KeywordDetector` + `SkillInjector` |
+| ② **멀티에이전트 협업** | 할 일 목록을 여러 에이전트가 **나눠서 동시에** 처리 | `Orchestrator` + `TeamPipeline` |
+| ③ **통과까지 반복 (Ralph)** | 검사→수정을 **목표 통과할 때까지** 반복(절반만 하고 끝내지 않음) | `RalphLoop` + `PersistentMode` |
+| ④ **결과 저장 + 모델 선택** | 결과물을 안전하게 저장하고, 일 난이도에 맞는 모델을 자동 배정 | `ArtifactStore` + `TierModelMap` |
 
-다른 프로젝트에서 엔진으로 가져다 쓸 때. 세 가지 방법 중 택1:
+---
+
+## 설치
+
+준비물:
+- **Python 3.11 이상**
+- **[uv](https://docs.astral.sh/uv/)** (파이썬·패키지 관리 도구). 없으면:
+  `brew install uv` 또는 `curl -LsSf https://astral.sh/uv/install.sh | sh`
+  - uv가 알아서 파이썬 3.12를 받아오므로, 시스템 파이썬이 낮아도 됩니다.
+
+### 방법 A — 이 저장소를 직접 받아 써보기 (추천: 처음 보는 경우)
 
 ```bash
-# 1) git 태그 의존 (권장) — uv가 클론→빌드→설치
+git clone https://github.com/kbigdata/superharness && cd superharness
+uv venv --python 3.12            # ./.venv 가상환경 생성
+uv pip install -e ".[dev]"       # 설치 (오프라인, 키 불필요)
+uv run superharness demo         # 바로 체험
+```
+
+### 방법 B — 내 다른 프로젝트에서 라이브러리로 가져오기
+
+```bash
+# git 태그로 의존 (uv가 클론→빌드→설치까지)
 uv add "superharness @ git+https://github.com/kbigdata/superharness@v0.3.0"
-
-# 2) 릴리스 첨부 wheel
-uv pip install \
-  https://github.com/kbigdata/superharness/releases/download/v0.3.0/superharness-0.3.0-py3-none-any.whl
-
-# 3) 소스 배포본(sdist)
-uv pip install \
-  https://github.com/kbigdata/superharness/releases/download/v0.3.0/superharness-0.3.0.tar.gz
 ```
 
 `pyproject.toml`에 고정하려면:
@@ -113,113 +152,120 @@ uv pip install \
 [tool.uv.sources]
 superharness = { git = "https://github.com/kbigdata/superharness", tag = "v0.3.0" }
 ```
-실 Claude 백엔드까지: `uv add "superharness[anthropic] @ git+https://github.com/kbigdata/superharness@v0.3.0"`.
 
-### B. 개발용 설치 (소스 클론)
-
-이 저장소 자체에서 개발·기여할 때:
-
-```bash
-git clone https://github.com/kbigdata/superharness && cd superharness
-uv python install 3.12              # 3.12 미설치 시 1회
-uv venv --python 3.12               # ./.venv 생성 (.python-version=3.12 핀)
-uv pip install -e ".[dev]"          # 코어 + 개발 도구 (오프라인)
-# uv pip install -e ".[dev,anthropic]"  # 실제 Claude 백엔드까지
-```
-
-> uv 없이도 가능: 3.11+ 인터프리터를 마련한 뒤 `python -m venv .venv && .venv/bin/pip install -e ".[dev]"`.
+> 실제 Claude 백엔드까지 한 번에:
+> `uv add "superharness[anthropic] @ git+https://github.com/kbigdata/superharness@v0.3.0"`
+> 릴리스에 첨부된 wheel/sdist 파일은 [최신 릴리스 페이지](https://github.com/kbigdata/superharness/releases/latest)에서 받을 수 있습니다.
 
 ---
 
 ## 빠른 시작 (API 키 불필요)
 
-기본 `mock` 프로바이더라 **네트워크/키 없이** 전부 동작한다. `uv run` 접두사를 붙이거나
-`source .venv/bin/activate` 후 실행한다.
+기본이 `mock`(가짜 AI) 모드라 **인터넷·키 없이** 전부 동작합니다. 명령 앞에 `uv run`을 붙이세요.
 
 ```bash
-uv run superharness --help
-uv run superharness ask "hello" --tier high       # 단일 완성 (티어→모델 라우팅)
-uv run superharness state init                    # .superharness 상태 트리 + 샘플 아티팩트
-uv run superharness skills list                   # 로드된 스킬/트리거
+uv run superharness --help                         # 전체 명령 보기
+uv run superharness ask "hello" --tier high        # AI에게 1번 질문 (난이도 high)
+uv run superharness skills list                    # 켤 수 있는 스킬 목록
 uv run superharness skills detect "ultrawork: refactor, don't stop until done"
-uv run superharness agents run architect-high "결제 모듈 분석"
-uv run superharness team "build a CSV parser"     # plan→exec→verify→fix
-uv run superharness demo                          # 위 흐름 전체를 한 번에
+uv run superharness team "build a CSV parser"      # 팀으로 처리 (기획→실행→검사→수정)
+uv run superharness demo                           # 위 전체 흐름을 한 번에 시연
 ```
 
-| 명령 | 설명 |
+### 명령 모음
+
+| 명령 | 하는 일 |
 |---|---|
-| `ask <prompt> [--tier] [--provider]` | 프로바이더에 1회 질의 → 텍스트 |
-| `state init` | 상태 디렉토리 트리 생성 + 샘플 아티팩트 기록 |
-| `skills list` / `skills detect <prompt>` | 스킬 목록 / 키워드 감지·활성화 결과 |
-| `skills proposed` / `promote` / `history` / `rollback` / `refine` | 제안 격리 · 승격 · 버전 이력 · 롤백 · critic 개선 |
-| `agents run <name> <desc>` | 단일 에이전트 디스패치 + 아티팩트 기록 |
-| `team <goal> [--learn]` | Team 파이프라인(plan→exec→verify→fix), `--learn` 시 재사용 스킬 추출 |
-| `demo [prompt]` | 키워드→스킬→파이프라인→Ralph E2E |
+| `ask <질문> [--tier] [--provider]` | AI에 한 번 물어보고 답을 받음 |
+| `team <목표> [--learn]` | 팀 파이프라인 실행(기획→실행→검사→수정). `--learn` 시 성공 경험을 재사용 스킬로 추출 |
+| `demo [프롬프트]` | 키워드→스킬→팀→반복까지 전 과정 시연 |
+| `skills list / detect <프롬프트>` | 스킬 목록 / 어떤 스킬·모드가 켜지는지 미리 보기 |
+| `skills proposed / promote / history / rollback / refine` | 자동 생성된 스킬의 검토·승격·이력·되돌리기·개선 |
+| `agents run <이름> <설명>` | AI 일꾼 하나만 직접 실행 |
+| `state init` | 상태/결과물 저장 폴더 만들기 |
+| `memory add / query` | 기억(메모리) 추가 / 검색 *(v0.3.0)* |
+| `codebase glob / read / grep / map` | 소스 코드 탐색: 파일 찾기·읽기·검색·구조 요약 *(v0.3.0)* |
+| `wiki add / show` · `session search` | 누적 위키 기록 / 과거 세션 검색 *(v0.3.0)* |
 
 ---
 
-## 오케스트레이션 개념
+## 조금 더 깊이: 개념 설명
 
-### 스킬 · 매직 키워드
+### 스킬 — 키워드로 켜지는 작업 규칙
 
-스킬은 **YAML frontmatter + 마크다운 본문**이며, 프롬프트에 트리거가 들어가면 자동 활성화된다.
+스킬은 **YAML 머리말 + 마크다운 본문**으로 된 파일입니다. 프롬프트에 트리거 단어가 들어가면 자동으로 켜집니다.
 
-| 스킬 | 트리거 | 모드 |
+| 스킬 | 트리거 단어 | 모드(작업 방식) |
 |---|---|---|
-| `ultrawork` | `ultrawork`, `ulw`, `uw` | ultrawork |
-| `autopilot` | `autopilot`, `build me`, `end to end`, `e2e this` | autopilot |
-| `ralph` | `ralph`, `don't stop`, `must complete`, `until done` | ralph |
-| `team` | `team`, `team up`, `collaborate` | team |
+| `ultrawork` | `ultrawork`, `ulw`, `uw` | 강하게 밀어붙이는 모드 |
+| `autopilot` | `autopilot`, `build me`, `end to end`, `e2e this` | 자율 진행 모드 |
+| `ralph` | `ralph`, `don't stop`, `must complete`, `until done` | 통과까지 멈추지 않는 모드 |
+| `team` | `team`, `team up`, `collaborate` | 협업 파이프라인 모드 |
+| `karpathy` | `karpathy`, `카파시`, `코딩 규율` | 작업 규율 지침(신중·간결·외과적·목표주도) |
 
-- 매칭: **word-boundary 정규식 + longest-match 우선**, 스킬당 1회.
-- 여러 스킬이 켜지면 **가장 강한 모드** 채택: `plain < ultrawork < autopilot < team < ralph`.
-- 커스텀 스킬: `./.superharness/skills/*.md`(프로젝트) · `~/.superharness/skills/*.md`(유저) — 뒤가 override.
+- 여러 스킬이 동시에 켜지면 **가장 강한 모드**가 이깁니다: `plain < ultrawork < autopilot < team < ralph`.
+- 나만의 스킬은 `./.superharness/skills/*.md`(프로젝트) 또는 `~/.superharness/skills/*.md`(내 계정)에 두면 됩니다.
 
-### 에이전트 매트릭스 (도메인 × 티어)
+### 에이전트 — 역할별 AI 일꾼 (역할 × 난이도)
 
-이름 규칙: MEDIUM은 도메인명 그대로, 그 외는 `도메인-티어`. (`agents run`의 인자로 사용)
+이름 규칙: 난이도 MEDIUM은 역할 이름 그대로, 나머지는 `역할-난이도`. (`agents run`의 첫 인자로 사용)
 
-| 도메인 | LOW | MEDIUM | HIGH |
+| 역할(도메인) | LOW | MEDIUM | HIGH |
 |---|---|---|---|
-| architect | `architect-low` | `architect` | `architect-high` |
-| executor | `executor-low` | `executor` | `executor-high` |
-| explore | `explore-low` | – | `explore-high` |
-| designer | – | `designer` | – |
-| planner | – | – | `planner-high` |
-| critic | – | – | `critic-high` |
-| qa-tester | – | `qa-tester` | – |
-| security-reviewer | – | – | `security-reviewer-high` |
+| architect(설계) | `architect-low` | `architect` | `architect-high` |
+| executor(실행) | `executor-low` | `executor` | `executor-high` |
+| explore(탐색) | `explore-low` | – | `explore-high` |
+| code-explorer(코드 탐색) | – | `code-explorer` | – |
+| designer(UI) | – | `designer` | – |
+| planner(기획) | – | – | `planner-high` |
+| critic(비평) | – | – | `critic-high` |
+| qa-tester(검사) | – | `qa-tester` | – |
+| security-reviewer(보안) | – | – | `security-reviewer-high` |
 
-매트릭스는 데이터(`_DEFAULT_MATRIX`)다 — 새 에이전트는 행 추가로 끝(클래스 작성 불필요).
+> 새 역할 추가는 표(`_DEFAULT_MATRIX`)에 **한 줄** 넣으면 끝입니다. 클래스를 새로 쓸 필요가 없습니다.
 
-### 티어 → 모델
+### 티어 → 모델 (난이도가 모델을 고른다)
 
-| 티어 | 기본 모델 | override |
+| 티어(난이도) | 자동 선택 모델 | 직접 바꾸기 |
 |---|---|---|
-| LOW | `claude-haiku-4-5` | `SUPERHARNESS_TIER_LOW` |
-| MEDIUM | `claude-sonnet-4-6` | `SUPERHARNESS_TIER_MEDIUM` |
-| HIGH | `claude-opus-4-8` | `SUPERHARNESS_TIER_HIGH` |
+| LOW(쉬움) | `claude-haiku-4-5` | `SUPERHARNESS_TIER_LOW` |
+| MEDIUM(보통) | `claude-sonnet-4-6` | `SUPERHARNESS_TIER_MEDIUM` |
+| HIGH(어려움) | `claude-opus-4-8` | `SUPERHARNESS_TIER_HIGH` |
 
-### 상태 · 아티팩트 (control / data plane 분리)
+### 결과물은 어디에 저장되나
 
 ```
 .superharness/
-├── state/sessions/<id>/meta.json   # control: 세션 메타 + 이벤트 로그 (작은 JSON)
-├── artifacts/<sha256>.<ext>        # data: 큰 내구성 산출물 (해시 주소)
-├── project-memory.json             # control: 재사용 사실
-└── plans/ specs/ notepads/ handoffs/   # (예약)
+├── state/sessions/<id>/meta.json   # 세션 메타 + 이벤트 로그 (작은 JSON)
+├── artifacts/<지문>.<확장자>        # 큰 결과물 (내용 해시로 주소화 → 변조 방지)
+├── project-memory.json             # 재사용할 작은 사실들 + 자동 적립 이벤트
+├── memory.json                     # 구조화 메모리 (v0.3.0)
+└── plans/ specs/ notepads/ handoffs/
 ```
 
-`ArtifactStore.write()`는 내용을 sha256으로 주소화하고 `ArtifactDescriptor`(kind·path·
-content_hash·producer·created_at)를 돌려준다. control plane은 **descriptor만** 들고 다닌다.
-`ReadPath`/`WritePath`(`NewType` + 검증 생성자)로 정적 구분 + 디렉토리 traversal을 차단한다.
+작은 메타데이터(어떤 일을 했나)와 큰 결과물(실제 내용)을 **분리**해서 다룹니다. 큰 결과물은
+내용 지문(sha256)으로 저장하고, 읽을 때 지문을 다시 검사해 **변조를 잡아냅니다**. 또 모든 경로는
+저장 폴더 밖으로 못 나가게 막아(`../` 같은 탈출 차단) 안전합니다.
 
 ---
 
-## 라이브러리로 임베드
+## v0.3.0에서 추가된 것
 
-CLI 없이 코드에서 직접 엔진을 구동한다(전부 async — 동기 컨텍스트는 `anyio.run`으로 감싼다).
+기존 4대 기능 위에 **"기억"과 "코드 읽기"** 능력이 더해졌습니다. (모두 키 없이 오프라인 동작)
+
+- 🧠 **메모리 자동 적립** — 에이전트가 일하는 동안 활동이 `project-memory.json`에 자동으로 쌓입니다.
+- 🔎 **구조화 메모리 + 검색/회상** — 메모리를 태그·네임스페이스로 저장하고 검색. 목표와 관련된
+  기억을 자동으로 떠올려 작업에 끼워 넣습니다. → `superharness memory add / query`
+- 📖 **코드베이스 읽기** — 소스 트리를 안전하게 탐색(`glob`/`read`/`grep`)하고, 파일별 함수·클래스
+  구조를 요약한 **코드맵**을 만듭니다. → `superharness codebase glob / read / grep / map`
+- 🗂 **프로젝트별 상태 격리** — `SUPERHARNESS_STATE_ROOT`를 켜면 프로젝트마다 상태가 분리됩니다.
+- 📚 **위키 · 세션 검색** — 누적 지식 위키와 과거 세션 검색. → `superharness wiki`, `superharness session search`
+
+---
+
+## 코드에서 직접 쓰기 (라이브러리)
+
+CLI 없이 파이썬 코드에서 엔진을 직접 굴릴 수 있습니다 (전부 async — 동기 코드에선 `anyio.run`으로 감쌈).
 
 ```python
 import anyio
@@ -231,7 +277,7 @@ from superharness.providers import get_provider
 from superharness.skills import SkillRegistry
 from superharness.state import StateLayout, ArtifactStore
 
-settings = load_settings()                          # SUPERHARNESS_* 반영 (기본 mock)
+settings = load_settings()                          # SUPERHARNESS_* 환경변수 반영 (기본 mock)
 layout = StateLayout(settings.state_dir).init()
 hooks = HookBus()
 
@@ -251,8 +297,8 @@ result = anyio.run(lambda: pipeline.run("build a CSV parser"))
 print(result.verified, result.iterations, len(result.results))
 ```
 
-더 많은 예시(단일 에이전트 디스패치, 오케스트레이터, Ralph 루프, 아티팩트 직접 IO)는
-[`docs/USAGE.md` §8](docs/USAGE.md)을 참고.
+더 많은 예시(에이전트 하나만 실행, 오케스트레이터 직접 제어, Ralph 루프, 메모리/코드베이스 도구)는
+[`docs/USAGE.md`](docs/USAGE.md)와 [`docs/하네스-가이드.md`](docs/하네스-가이드.md)를 보세요.
 
 ---
 
@@ -263,49 +309,46 @@ uv pip install -e ".[dev,anthropic]"
 SUPERHARNESS_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-... uv run superharness ask "hello"
 ```
 
-`get_provider(name)`이 유일한 교체 지점이다. `AnthropicProvider`의 요청 구성 규칙:
-- MEDIUM/HIGH 티어에서만 `thinking={"type":"adaptive"}` + `output_config={"effort": ...}`.
-- `temperature`/`top_p`/`budget_tokens`는 **절대 전송하지 않음**(해당 모델에서 400).
-- 큰 `max_tokens`는 스트리밍으로 전송. `anthropic` import는 lazy(extra 미설치 시 불필요).
+`mock` ↔ `anthropic` 전환은 환경변수 하나면 끝입니다. (내부적으로 `get_provider(name)` 한 곳에서만 갈아끼움)
 
-> 비용 주의: 실 백엔드에서 `team`/`demo`는 다수 에이전트를 호출한다. 먼저 mock/`--tier low`로 검증할 것.
+> ⚠️ **비용 주의**: 실제 백엔드에서 `team`·`demo`는 여러 에이전트를 호출합니다.
+> 먼저 `mock`이나 `--tier low`로 흐름을 확인한 뒤 쓰세요.
 
 ---
 
 ## 설정 (환경변수)
 
-모든 설정은 `SUPERHARNESS_` 접두사. 우선순위: 기본값 < 환경변수 < CLI 옵션. 샘플은 [`.env.example`](.env.example).
+모든 설정은 `SUPERHARNESS_` 접두사입니다. 우선순위: 기본값 < 환경변수 < CLI 옵션. 샘플은 [`.env.example`](.env.example).
 
 | 변수 | 기본값 | 설명 |
 |---|---|---|
-| `SUPERHARNESS_PROVIDER` | `mock` | `mock`(오프라인) / `anthropic` |
-| `SUPERHARNESS_STATE_DIR` | `./.superharness` | 상태/아티팩트 루트 |
-| `SUPERHARNESS_PARALLEL_EXECUTION` | `true` | 병렬 실행 on/off |
-| `SUPERHARNESS_MAX_CONCURRENCY` | `4` | 오케스트레이터 동시성 상한 |
-| `SUPERHARNESS_MAX_ITERATIONS` | `10` | Ralph/fix 루프 최대 반복 |
-| `SUPERHARNESS_TIER_{LOW,MEDIUM,HIGH}` | haiku/sonnet/opus | 티어→모델 override |
-| `SUPERHARNESS_LOG` | `INFO` | 로그 레벨 |
-| `ANTHROPIC_API_KEY` | – | `anthropic` 프로바이더에서만 필요 |
+| `SUPERHARNESS_PROVIDER` | `mock` | `mock`(가짜·오프라인) / `anthropic`(진짜 Claude) |
+| `SUPERHARNESS_STATE_DIR` | `./.superharness` | 상태·결과물 저장 폴더 |
+| `SUPERHARNESS_STATE_ROOT` | (없음) | 설정 시 프로젝트별로 상태 분리 *(v0.3.0)* |
+| `SUPERHARNESS_PARALLEL_EXECUTION` | `true` | 병렬 실행 켜기/끄기 |
+| `SUPERHARNESS_MAX_CONCURRENCY` | `4` | 동시에 일하는 에이전트 최대 수 |
+| `SUPERHARNESS_MAX_ITERATIONS` | `10` | "통과까지 반복"의 최대 횟수 |
+| `SUPERHARNESS_TIER_{LOW,MEDIUM,HIGH}` | haiku/sonnet/opus | 난이도별 모델 바꾸기 |
+| `SUPERHARNESS_LOG` | `INFO` | 로그 상세도 |
+| `ANTHROPIC_API_KEY` | – | `anthropic` 모드에서만 필요 |
 
 ---
 
 ## 테스트 · 품질
 
 ```bash
-uv run pytest -q       # 61개 테스트 — 오프라인(mock), 네트워크/키 불필요
-uv run ruff check .    # 린트
-uv run mypy src        # 타입 체크
+uv run pytest -q       # 테스트 (오프라인, 키 불필요)
+uv run ruff check .    # 코드 스타일 검사
+uv run mypy src        # 타입 검사
 ```
 
-- **61개 테스트 · 라인 커버리지 95%** (오프라인 59 + 라이브 2 opt-in).
-- 단위 테스트는 전부 `MockProvider`로 결정적·오프라인. `pytest-asyncio` auto 모드(마커 불필요).
-- **라이브 API 테스트**(`live` 마커)는 기본 skip. 실제 1콜로 검증:
+- **테스트 90개 통과** + 라이브 API 테스트 3개(opt-in, 기본 건너뜀). 전부 `MockProvider`로 결정적·오프라인.
+- 세 검사(pytest · ruff · mypy)는 현재 모두 통과하며, 코드 변경 시 **녹색 유지가 규칙**입니다.
+- 실제 API로 1콜 검증하려면:
   ```bash
   uv pip install -e ".[dev,anthropic]"
   ANTHROPIC_API_KEY=sk-ant-... uv run pytest -m live
   ```
-
-세 게이트(pytest/ruff/mypy)는 현재 모두 통과 — 변경 시 녹색 유지가 규칙.
 
 ---
 
@@ -313,65 +356,50 @@ uv run mypy src        # 타입 체크
 
 ```
 src/superharness/
-  providers/      base(Provider Protocol · Tier) · mock · anthropic · 레지스트리
-  skills/         skill · registry · keyword_detector · injector · writer · versions · similarity(의미 dedup) · builtin/*.md
-  agents/         agent(도메인×티어) · registry(매트릭스)
-  orchestration/  task(공유 큐) · orchestrator · pipeline(Team) · ralph · learner(자동 스킬 생성)
-  hooks/          events · bus(+ persistent-mode STOP 가드)
-  state/          paths(브랜디드) · descriptor · artifacts(data) · store(control)
-  config.py       Settings(SUPERHARNESS_*) · TierModelMap
-  cli.py          Typer: ask / state / skills / agents / team / demo
-tests/            59 오프라인 + 2 라이브(opt-in)
-docs/USAGE.md     상세 사용 설명서
-examples/starter-app/   재사용 스타터 템플릿
+  providers/      AI 백엔드 — base(Provider 규약·Tier) · mock · anthropic
+  skills/         스킬 시스템 — 로딩·키워드 감지·주입·자동생성(writer)·버전관리 · builtin/*.md(5개)
+  agents/         에이전트 — agent(역할×난이도) · registry(매트릭스)
+  orchestration/  조율 — task(공유 큐) · orchestrator · pipeline(Team) · ralph(반복) · learner(스킬 추출)
+  state/          저장 — paths · artifacts(결과물) · store(메타) · memory(메모리) · wiki   ← v0.3.0 확장
+  tools/          코드 이해 — codebase(glob/read/grep) · codemap(구조 요약)             ← v0.3.0 신규
+  hooks/          이벤트 — events · bus(+ STOP 차단 가드)
+  config.py       설정(SUPERHARNESS_*) · 티어→모델 매핑
+  cli.py          명령들 — ask / team / demo / skills / agents / state / memory / codebase / wiki / session
+tests/            테스트 90개(오프라인) + 3개(라이브 opt-in)
+docs/             USAGE.md(상세 사용법) · 하네스-가이드.md(구조 안내)
+examples/starter-app/   엔진으로 가져다 쓰는 스타터 템플릿
 ```
-
----
-
-## 새 프로젝트에서 재사용
-
-슈퍼하네스를 **엔진으로 가져다 쓰는** 새 프로젝트 예제가 [`examples/starter-app/`](examples/starter-app/)에 있다
-(커스텀 스킬·에이전트 + Team 파이프라인 + 자체 CLI). git 의존으로 연결한다:
-
-```toml
-# 소비 프로젝트의 pyproject.toml
-[tool.uv.sources]
-superharness = { git = "https://github.com/kbigdata/superharness", tag = "v0.3.0" }
-```
-
-uv가 클론→wheel 빌드→설치한다. PyPI/사내 인덱스 배포가 필요하면 `uv build`로 `dist/*.whl`을 만든다.
 
 ---
 
 ## 상태 · 로드맵
 
-**상태**: v0.3.0 — 4대 핵심 패턴 + 자동 스킬 생성(learner)·refine/버전관리·의미 dedup·CI에 더해, **메모리 자동 적립·구조화 검색/회상**과 **읽기 전용 코드베이스 이해(grep/read/map)·project-id 격리·위키/세션검색**을 추가. mock·실 Claude 양쪽 동작.
+**현재 v0.3.0** — 4대 핵심 기능 + 자동 스킬 생성/개선/버전관리 + **메모리(자동 적립·검색·회상)** +
+**코드베이스 읽기(grep/read/map)** + 프로젝트별 상태 격리 + 위키/세션 검색. mock·실 Claude 양쪽 동작.
 
 ### 구현됨 ✅
-- **자동 스킬 생성(`learner`)** — 검증 통과 세션에서 재사용 스킬 추출(격리/제안 → 승격). `team --learn`
-- **refine + 버전관리** — `critic` 기반 스킬 개선(`skills refine`), 버전 이력·롤백(`skills history`/`rollback`, ArtifactStore 보관)
-- **의미 기반 dedup** — 어휘 Jaccard 게이트(오프라인 기본, `Similarity` Protocol로 교체 가능) + 선택적 LLM judge(`semantic_judge`)
-- **GitHub Actions CI** — Python 3.11/3.12/3.13 매트릭스 + 빌드 검증
+- **자동 스킬 생성(`learner`)** — 성공한 작업에서 재사용 스킬을 추출(검토용으로 격리 → 사람이 승격). `team --learn`
+- **스킬 개선·버전관리** — `critic`이 스킬을 다듬고(`skills refine`), 이력·롤백 지원(`skills history`/`rollback`)
+- **의미 기반 중복 제거** — 어휘 유사도(오프라인) + 선택적 LLM 판정
+- **메모리 & 코드베이스 레이어 (v0.3.0)** — 위 [v0.3.0에서 추가된 것](#v030에서-추가된-것) 참고
+- **CI** — GitHub Actions, Python 3.11/3.12/3.13 매트릭스 + 빌드 검증
 
-### 확장 여지 (아키텍처 변경 없이 흡수 가능)
-- 서브프로세스/CLI 워커 프로바이더(Codex/Gemini), LSP/AST 툴 레이어
-- `wiki`류 스킬(기존 `notepads/`·`project-memory.json` 활용), 원격 상태(`SUPERHARNESS_STATE_DIR` 공유 마운트)
+### 확장 여지 (구조 변경 없이 흡수 가능)
+- 다른 CLI 모델(Codex·Gemini) 프로바이더, LSP/AST 정밀 코드 분석 레이어
+- 원격 공유 상태(`SUPERHARNESS_STATE_DIR`를 공유 마운트로)
 
-### 의도적으로 보류 ⏸️ — 트립와이어 충족 시에만
-- **임베딩 기반 `Similarity`** — *지금 도입하지 않음.* 이유: 빌트인 5개·실사용 0 규모에선 기존
-  `정확 → 어휘(Jaccard) → LLM judge` 3중 방어로 충분하고, 임베딩은 외부 의존(Voyage/OpenAI = 오프라인
-  원칙 위배)이나 무거운 로컬 모델(`sentence-transformers`)을 요구해 경량·오프라인 정체성과 충돌한다.
-  `Similarity` Protocol 이음새는 이미 열려 있어 **필요해질 때 무리 없이 추가** 가능. 도입 신호(아래 중 하나라도 실제 발생 시):
-  1. 실 Claude 자동 추출로 **활성 스킬이 수십 개 이상** 누적
-  2. LLM judge의 비용/지연이 **측정 가능한 부담**으로 확인
-  3. dedup을 넘어 **의미 기반 스킬 *검색*(top-k 주입)** 이 필요 — 임베딩의 더 큰 정당화
+### 의도적으로 보류 ⏸️
+- **임베딩 기반 유사도** — 현재 규모(빌트인 스킬 소수)에선 어휘 유사도로 충분. 외부 의존(오프라인 원칙 위배)
+  또는 무거운 로컬 모델을 요구하므로, 활성 스킬이 수십 개로 늘거나 의미 기반 *검색*이 필요해질 때 추가 예정.
+  교체 지점(`Similarity` Protocol)은 이미 열려 있음.
 
 ---
 
 ## 더 알아보기
 
-- 상세 사용 설명서: [`docs/USAGE.md`](docs/USAGE.md) — CLI 전체 레퍼런스, 환경변수, 라이브러리 API, 확장, FAQ
+- 상세 사용 설명서: [`docs/USAGE.md`](docs/USAGE.md) — CLI 전체 레퍼런스 · 환경변수 · 라이브러리 API · FAQ
+- 구조 안내(그림 위주): [`docs/하네스-가이드.md`](docs/하네스-가이드.md)
 - 스타터 템플릿: [`examples/starter-app/`](examples/starter-app/)
 - 코드 작업 규약: [`CLAUDE.md`](CLAUDE.md)
 
-라이선스: **MIT**.
+라이선스: **MIT**
