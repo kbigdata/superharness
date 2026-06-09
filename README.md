@@ -1,5 +1,7 @@
 # 슈퍼하네스 (superharness)
 
+**한국어** | [English](README.en.md)
+
 > 여러 AI를 한 팀처럼 묶어, 하나의 목표를 **통과할 때까지 자동으로** 처리하게 해주는 작은 Python 엔진
 
 [![CI](https://github.com/kbigdata/superharness/actions/workflows/ci.yml/badge.svg)](https://github.com/kbigdata/superharness/actions/workflows/ci.yml)
